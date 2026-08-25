@@ -12,3 +12,6 @@ build/
 # Dades d'usuari en execució (rutes personals) — l'app les genera amb defaults
 config.json
 bookmarks.json
+
+# Zips de distribució — van a GitHub Releases, no al repo
+releases/
