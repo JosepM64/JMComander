@@ -1,0 +1,17 @@
+{
+    "id": "extractor",
+    "name": "Extractor Multi-formato",
+    "version": "1.0.2",
+    "author": "Josep Maria Tapia",
+    "description": "Extrae archivos comprimidos (ZIP, RAR, 7Z, TAR) en la carpeta seleccionada o en una nueva subcarpeta, con diálogo de progreso, cancelación y soporte para contraseñas.",
+    "entry": "main.py",
+    "actions": [
+        {
+            "id": "plugin_extractor",
+            "name": "Extraer archivos",
+            "icon": "mdi-archive-arrow-down",
+            "description": "Extrae archivos comprimidos (ZIP, RAR, 7Z, TAR)",
+            "handler": "run_extractor"
+        }
+    ]
+}

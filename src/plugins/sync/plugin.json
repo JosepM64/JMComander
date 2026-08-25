@@ -1,0 +1,17 @@
+{
+    "id": "sync",
+    "name": "Sincronitzar",
+    "version": "1.0.0",
+    "author": "JMComander",
+    "description": "Sincronitza el contingut de dos carpetes: compara, mostra diferències i copia fitxers.",
+    "entry": "main.py",
+    "actions": [
+        {
+            "id": "plugin_sync",
+            "name": "Sincronitzar carpetes",
+            "icon": "mdi-sync",
+            "description": "Sincronitza el contingut dels dos panells",
+            "handler": "run_sync"
+        }
+    ]
+}

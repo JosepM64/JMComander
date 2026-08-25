@@ -1,0 +1,16 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: check-syntax
+        name: Check Python syntax
+        entry: python -m py_compile
+        language: system
+        files: \.py$
+        pass_filenames: true

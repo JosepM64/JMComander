@@ -1,0 +1,64 @@
+[tool.ruff]
+# JMComander Ruff configuration
+# See: https://docs.astral.sh/ruff/
+
+line-length = 100
+indent-width = 4
+target-version = "py313"
+
+[tool.ruff.lint]
+# Select rule sets
+select = ["E", "F", "W", "I", "N", "UP", "YTT", "BLE", "B", "A", "C4", "DTZ", "T10", "EM", "EXE", "ISC", "ICN", "G", "INP", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PIE", "PL", "TRY", "FLY", "PERF", "RUF"]
+ignore = [
+    "E501",   # Line too long (handled by formatter, but we allow 100)
+    "B008",   # Do not perform function calls in argument defaults
+    "C901",   # Too complex
+    "B905",   # `zip()` without `strict=True` (Python 3.10+)
+    "UP007",  # `Type[X]` vs `typing.Type[X]` (can be noisy)
+    "SIM105", # `try`-`except`-`else` may be intentional
+    "SIM300", # `yield` inside loop (intentional sometimes)
+    "PLR0913", # Too many arguments (Qt signals often many)
+    "PLR0915", # Too many statements (complex methods)
+    "PLR0911", # Too many return statements
+    "PLR2004", # Magic value used in comparison (common in UI)
+    "RUF001", # String contains ambiguous unicode character (not critical)
+    "RUF002", # etc.
+    "PTH",    # Temporarily ignore pathlib migration (400+ errors - defer for later)
+]
+
+# Exclude directories
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "dist/JMComander",
+]
+
+# Allow unused variables when prefixed with underscore
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Unused imports in __init__ are fine
+
+[tool.ruff.format]
+# Use double quotes by default
+quote-style = "double"
+
+# Use spaces for indentation
+indent-style = "space"
+
+# Detect line endings
+skip-magic-trailing-comma = false

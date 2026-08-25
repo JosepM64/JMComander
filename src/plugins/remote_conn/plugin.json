@@ -1,0 +1,18 @@
+{
+    "id": "remote_conn",
+    "name": "Conexión Remota (FTP/SFTP)",
+    "version": "1.0.0",
+    "author": "Josep Maria Tapia",
+    "description": "Conecta a servidores remotos para descargar archivos a la carpeta actual.",
+    "entry": "main.py",
+    "config_dialog": "RemoteConnConfigDialog",
+    "actions": [
+        {
+            "id": "plugin_remote_conn",
+            "name": "Conectar remoto",
+            "icon": "mdi-server-network",
+            "description": "Conecta a servidores remotos para descargar archivos",
+            "handler": "run_remote_conn"
+        }
+    ]
+}

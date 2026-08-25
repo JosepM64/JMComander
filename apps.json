@@ -1,0 +1,17 @@
+[
+    {
+        "name": "Notepad",
+        "path": "notepad.exe",
+        "args": ""
+    },
+    {
+        "name": "Calculadora",
+        "path": "calc.exe",
+        "args": ""
+    },
+    {
+        "name": "Paint",
+        "path": "mspaint.exe",
+        "args": ""
+    }
+]

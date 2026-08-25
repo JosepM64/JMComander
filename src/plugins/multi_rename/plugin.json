@@ -1,0 +1,17 @@
+{
+    "id": "multi_rename",
+    "name": "Renombrado Masivo",
+    "version": "1.3.0",
+    "author": "Josep Maria Tapia",
+    "description": "Permite renombrar múltiples archivos de forma automática usando reglas flexibles, incluyendo expresiones regulares y opciones de mayúsculas/minúsculas.",
+    "entry": "main.py",
+    "actions": [
+        {
+            "id": "plugin_multi_rename",
+            "name": "Renombrar archivos",
+            "icon": "mdi-rename",
+            "description": "Renombra múltiples archivos usando reglas flexibles",
+            "handler": "run_multi_rename"
+        }
+    ]
+}

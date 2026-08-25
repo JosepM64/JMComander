@@ -1,0 +1,18 @@
+{
+    "id": "organizer",
+    "name": "Organizador de Archivos",
+    "version": "1.1.0",
+    "author": "JMComander",
+    "description": "Organiza archivos por categoría y extensión, con diálogo de progreso y cancelación.",
+    "entry": "main.py",
+    "config_dialog": "OrganizerConfigDialog",
+    "actions": [
+        {
+            "id": "plugin_organize",
+            "name": "Organizar archivos",
+            "icon": "mdi-folder-sync",
+            "description": "Organiza archivos por extensión",
+            "handler": "run_organizer"
+        }
+    ]
+}

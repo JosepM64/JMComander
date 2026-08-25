@@ -1,0 +1,17 @@
+{
+    "id": "compressor",
+    "name": "Compresor de Archivos",
+    "version": "1.0.4",
+    "author": "Josep Maria Tapia",
+    "description": "Permite comprimir archivos y carpetas seleccionados en formato ZIP o TAR, con diálogo de progreso y cancelación.",
+    "entry": "main.py",
+    "actions": [
+        {
+            "id": "plugin_compressor",
+            "name": "Comprimir archivos",
+            "icon": "mdi-compress",
+            "description": "Comprime archivos y carpetas seleccionados en formato ZIP o TAR",
+            "handler": "run_compressor"
+        }
+    ]
+}

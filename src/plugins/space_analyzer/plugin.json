@@ -1,0 +1,17 @@
+{
+    "id": "space_analyzer",
+    "name": "Analitzador d'Espai",
+    "version": "1.0.2",
+    "author": "Josep Maria Tapia",
+    "description": "Analitza el directori actual i mostra els 50 fitxers més grans, ordenats per mida.",
+    "entry": "main.py",
+    "actions": [
+        {
+            "id": "plugin_space_analyzer",
+            "name": "Fitxers més grans",
+            "icon": "mdi-chart-bar",
+            "description": "Escaneja el directori i mostra els 50 fitxers que ocupen més espai.",
+            "handler": "run_space_analyzer"
+        }
+    ]
+}

@@ -1,0 +1,1 @@
+ICON_THEME = "MATERIAL"  # noqa: INP001

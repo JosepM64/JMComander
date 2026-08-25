@@ -1,0 +1,17 @@
+{
+    "id": "mini_grep",
+    "name": "Buscador de Contenido",
+    "version": "1.0.1",
+    "author": "Josep Maria Tapia",
+    "description": "Busca texto específico dentro de los archivos legibles de la carpeta actual.",
+    "entry": "main.py",
+    "actions": [
+        {
+            "id": "plugin_mini_grep",
+            "name": "Buscar texto",
+            "icon": "mdi-magnify",
+            "description": "Busca texto específico dentro de archivos legibles",
+            "handler": "run_mini_grep"
+        }
+    ]
+}

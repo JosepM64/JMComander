@@ -1,0 +1,17 @@
+{
+    "id": "file_finder",
+    "name": "Buscador de Archivos",
+    "version": "1.0.0",
+    "author": "Josep Maria Tapia",
+    "description": "Busca archivos por patrón (extensión, nombre, comodines) y permite seleccionar y eliminar los resultados.",
+    "entry": "main.py",
+    "actions": [
+        {
+            "id": "plugin_file_finder",
+            "name": "Buscar archivos",
+            "icon": "mdi-file-search",
+            "description": "Busca archivos por patrón y elimina los seleccionados",
+            "handler": "run_file_finder"
+        }
+    ]
+}

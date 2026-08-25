@@ -1,0 +1,17 @@
+{
+    "id": "compare_dirs",
+    "name": "Comparar Directorios",
+    "version": "1.1.0",
+    "author": "JMComander Community",
+    "description": "Compara el contenido de los dos paneles y selecciona automáticamente los archivos únicos.",
+    "entry": "main.py",
+    "actions": [
+        {
+            "id": "plugin_compare",
+            "name": "Comparar directorios",
+            "icon": "mdi-compare",
+            "description": "Compara los dos paneles y muestra las diferencias",
+            "handler": "compare_dirs"
+        }
+    ]
+}

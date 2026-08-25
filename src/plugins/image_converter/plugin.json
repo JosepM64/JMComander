@@ -1,0 +1,18 @@
+{
+    "id": "image_converter",
+    "name": "Conversor de Imágenes",
+    "version": "1.5.0",
+    "author": "Josep Maria Tapia",
+    "description": "Convierte imágenes masivamente. Soporta PNG, JPEG, WEBP, BMP, TIFF, GIF, HEIC/HEIF (iPhone/Live Photos). Incluye redimensionar y progreso.",
+    "entry": "main.py",
+    "config_dialog": "ImageConverterConfigDialog",
+    "actions": [
+        {
+            "id": "plugin_image_converter",
+            "name": "Convertir imágenes",
+            "icon": "mdi-image",
+            "description": "Convierte imágenes a PNG, JPEG, WEBP, etc. Soporta HEIC/HEIF de iPhone",
+            "handler": "run_image_converter"
+        }
+    ]
+}

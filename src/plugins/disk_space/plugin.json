@@ -1,0 +1,31 @@
+{
+    "id": "disk_space",
+    "name": "Espacio en Disco",
+    "version": "1.1.0",
+    "author": "Josep Maria Tapia",
+    "description": "Muestra información sobre el espacio total, usado y libre de la unidad actual. Busca carpetas vacías o con nombres duplicados.",
+    "entry": "main.py",
+    "actions": [
+        {
+            "id": "plugin_disk_space",
+            "name": "Espacio en disco",
+            "icon": "mdi-harddisk",
+            "description": "Muestra información sobre el espacio total, usado y libre de la unidad actual.",
+            "handler": "run_disk_space"
+        },
+        {
+            "id": "plugin_empty_folders",
+            "name": "Carpetas vacías",
+            "icon": "mdi-folder-remove",
+            "description": "Busca y elimina carpetas vacías en el directorio actual.",
+            "handler": "run_empty_folders"
+        },
+        {
+            "id": "plugin_duplicate_folders",
+            "name": "Carpetas duplicadas",
+            "icon": "mdi-folder-multiple",
+            "description": "Busca carpetas con el mismo nombre en el directorio actual.",
+            "handler": "run_duplicate_folders"
+        }
+    ]
+}

@@ -1,0 +1,17 @@
+{
+    "id": "hash_tool",
+    "name": "Calculadora de Hashes",
+    "version": "1.2.0",
+    "author": "Standard Library",
+    "description": "Calcula hashes MD5, SHA1, SHA256 o SHA512 para verificar la integridad de archivos usando la librería nativa hashlib.",
+    "entry": "main.py",
+    "actions": [
+        {
+            "id": "plugin_hash_tool",
+            "name": "Calcular hash",
+            "icon": "mdi-fingerprint",
+            "description": "Calcula hashes MD5 o SHA256 para verificar la integridad de archivos",
+            "handler": "run_hash_tool"
+        }
+    ]
+}

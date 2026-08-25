@@ -1,0 +1,18 @@
+{
+    "id": "duplicate_finder",
+    "name": "Buscador de Duplicados",
+    "version": "1.1.0",
+    "author": "Josep Maria Tapia",
+    "description": "Encuentra archivos idénticos. Configura el tamaño mínimo para acelerar el escaneo.",
+    "entry": "main.py",
+    "config_dialog": "DuplicateFinderConfigDialog",
+    "actions": [
+        {
+            "id": "plugin_duplicate_finder",
+            "name": "Buscar duplicados",
+            "icon": "mdi-file-find",
+            "description": "Encuentra archivos idénticos en el directorio actual",
+            "handler": "run_duplicate_finder"
+        }
+    ]
+}
