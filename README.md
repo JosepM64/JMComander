@@ -27,7 +27,7 @@ Descarga e instala Anaconda o Miniconda desde:
 ```bash
 conda create -n jm_pyside_313 python=3.13 -y
 conda activate jm_pyside_313
-pip install PySide6 PyInstaller send2trash
+pip install -r requirements.txt
 ```
 
 ### 3. Desarrollo
@@ -142,7 +142,7 @@ Crea el entorno:
 ```bash
 conda create -n jm_pyside_313 python=3.13 -y
 conda activate jm_pyside_313
-pip install PySide6 PyInstaller send2trash
+pip install -r requirements.txt
 ```
 
 ### El ejecutable no funciona en otro ordenador
@@ -152,18 +152,22 @@ Asegúrate de que las DLLs de Visual C++ Redistributable estén instaladas en el
 
 ## Características
 
-- **Doble panel:** Vista dual para operaciones de archivos eficientes
-- **Plugins extensibles:** Sistema de plugins para funcionalidades adicionales
-- **Configuración persistente:** Guarda preferencias y bookmarks
-- **Atajos de teclado:** Navegación rápida con teclado
-- **Vista de lista/iconos:** Cambia entre diferentes modos de visualización
-- **Operaciones de archivos:** Copiar, mover, eliminar, renombrar, comprimir
+- **Doble panel:** Vista dual estilo Total Commander con swap, comparación de carpetas y sincronización
+- **iPhone / MTP:** Navega por el Internal Storage del iPhone vía Shell COM y copia fotos/vídeos al PC (F5), con vista de columnas ordenables por nombre, tamaño y fecha
+- **Motor de copia propio:** Copia en paralelo con barra de progreso in-line, cancelación en vivo y sin diálogos modales; soporta archivos >2GB
+- **Archivos comprimidos:** Explora contenido de zip/rar/7z como si fueran carpetas
+- **Menús contextuales nativos de Windows** y Quick Look (F3) para previsualizar
+- **Plugins extensibles:** 16 plugins incluidos — organizador, buscador de duplicados, sincronizador, conversor de imágenes (con soporte HEIF del iPhone), conexión remota SFTP, borrado seguro, analizador de espacio, etc.
+- **Borrado seguro:** Método auto que detecta SSD/HDD y aplica pasadas sobrescribiendo
+- **Configuración persistente:** Preferencias, bookmarks, apps rápidas e historial de rutas
+- **Atajos de teclado:** Navegación rápida estilo Norton Commander (F5 copiar, F6 mover, F8 eliminar...)
+- **Vistas:** Detalles / Lista / Iconos, con filtro rápido, pestañas de carpetas y breadcrumb
 
 ## Documentación Adicional
 
 - `scripts/README.md` - Guía completa de scripts de build
-- `docs/ENV.md` - Configuración del entorno de desarrollo
 - `CHANGELOG.md` - Historial de cambios y versiones
+- `AGENTS.md` - Arquitectura interna y guía para desarrolladores
 
 ## Notas Importantes
 
@@ -182,6 +186,6 @@ Asegúrate de que las DLLs de Visual C++ Redistributable estén instaladas en el
 
 ---
 
-**Última actualización:** 2026-07-29  
-**Versión:** 6.8.3  
+**Última actualización:** 2026-08-25  
+**Versión:** 6.9.11  
 **Estado:** Estable y listo para distribución
