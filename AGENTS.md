@@ -2,7 +2,7 @@
 
 ## Descripció
 Administrador de fitxers de doble panel. Python 3.13 + PySide6.
-- **Versió**: 6.9.11 | **Data**: 2026-08-25
+- **Versió**: 6.9.12 | **Data**: 2026-08-25
 
 ## Estructura
 ```
@@ -10,7 +10,7 @@ JMComander/
 ├── main.py                    # Entry point
 ├── build.bat                  # Build ràpid
 ├── src/
-│   ├── version.py             # Versió: 6.9.11
+│   ├── version.py             # Versió: 6.9.12
 │   ├── core/                  # Lògica
 │   │   ├── jobs.py, fs_utils.py, config.py, actions.py
 │   │   ├── directory_watcher.py   # [NEW v6.8.0] Watcher + polling extret de panel.py
@@ -46,6 +46,13 @@ send2trash, rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musi
 ```
 
 ## Últimes versions
+- **v6.9.12** (2026-08-25): Fase 3 rendiment còpies+MTP
+  - MoveJob mateix volum → os.replace instantani; mida calculada 1 cop
+  - MtpCopyJob(QRunnable): còpia iPhone en background amb progrés i cancel·lació (CoInitialize propi al worker)
+  - _get_shell() singleton COM (4 Dispatch eliminats)
+  - TTL negatiu iPhone 5min (evita escaneig COM a cada navegació sense iPhone)
+  - ThreadPoolExecutor únic per còpia (no un per directori)
+  - Caché detecció SSD per unitat
 - **v6.9.11** (2026-08-25): Fase 2 rendiment navegació
   - config.json només es guarda al closeEvent; menú recents lazy (botó pressed)
   - Fix senyal fantasma: path_input textEdited en lloc de textChanged

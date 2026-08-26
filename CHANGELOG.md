@@ -1,5 +1,16 @@
 # Changelog JMComander
 
+## Versió 6.9.12 - Agost 2026
+
+### Fase 3 — Rendiment còpies i MTP/iPhone
+- **Moure dins del mateix disc ara és instantani**: `os.replace` directe en lloc de copiar+esborrar (~×1000 més ràpid); la ruta lenta queda només per a moviments entre unitats. La mida ja no es calcula dues vegades (MoveJob delegava el càlcul al CopyJob intern que el repetia).
+- **Còpia des de l'iPhone sense congelar la UI**: nou `MtpCopyJob(QRunnable)` amb barra de progrés in-line i cancel·lació; abans la navegació COM + CopyHere era síncrona al thread principal (minuts de congelació amb moltes fotos). El job usa el seu propi apartament COM (`CoInitialize`) per seguretat de threads.
+- **Singleton COM Shell.Application**: es creava un `Dispatch` a cada crida (~100ms cada una, 4 punts). Ara `_get_shell()` reutilitza la instància.
+- **Escaneig d'iPhone només quan cal**: TTL negatiu de 5 minuts (abans 30s) — en màquines sense iPhone, cada navegació disparava una enumeració COM completa d'"Aquest PC".
+- **Un sol ThreadPoolExecutor per còpia** (abans es creava/destruïa un per directori visitat).
+- **Caché de detecció SSD** per unitat: cada esborrat segur pagava 0.5-10s arrencant PowerShell; ara 0ms a partir del primer.
+- Tests verificats: rename instantani mateix volum, skip preserva original, caché SSD 2a crida 0ms, MtpCopyJob destí invàlid no bloqueja.
+
 ## Versió 6.9.11 - Agost 2026
 
 ### Fase 2 — Optimització del camí calent de navegació

@@ -14,7 +14,18 @@ logger = logging.getLogger(__name__)
 
 _iphone_cache = None
 _iphone_cache_time = 0
-_IPHONE_CACHE_TIMEOUT = 30
+_IPHONE_CACHE_TIMEOUT = 30  # resultat positiu (iPhone connectat)
+_IPHONE_NEGATIVE_TTL = 300  # sense iPhone: no re-escanejar COM a cada navegació
+_shell_app = None  # singleton COM — tot corre al thread d'UI, afinitat garantida
+
+
+def _get_shell():
+    """Retorna la instància COM Shell.Application reutilitzada.
+    Crear un Dispatch per crida costava ~100ms i deixava objectes COM solts."""
+    global _shell_app  # noqa: PLW0603
+    if _shell_app is None:
+        _shell_app = win32com.client.Dispatch("Shell.Application")
+    return _shell_app
 
 
 def get_iphone_storage_path(force_refresh=False):
@@ -35,15 +46,18 @@ def get_iphone_storage_path(force_refresh=False):
     )
 
     if not force_refresh and _iphone_cache_time > 0:
+        # TTL llarg per resultats negatius: en màquines SENSE iPhone, passats els
+        # 30s cada navegació disparava una enumeració COM completa de "Aquest PC"
+        ttl = _IPHONE_CACHE_TIMEOUT if _iphone_cache else _IPHONE_NEGATIVE_TTL
         elapsed = time.time() - _iphone_cache_time
-        if elapsed < _IPHONE_CACHE_TIMEOUT:
+        if elapsed < ttl:
             logger.debug(
                 f"Usando cache de iPhone (hace {elapsed:.1f}s, resultado: {_iphone_cache})"  # noqa: G004
             )
             return _iphone_cache
 
     try:
-        shell = win32com.client.Dispatch("Shell.Application")
+        shell = _get_shell()
         computers = shell.NameSpace("shell:::{20D04FE0-3AEA-1069-A2D8-08002B30309D}")
         if computers is None:
             logger.debug("No se pudo obtener el namespace de This PC")
@@ -108,7 +122,7 @@ def list_shell_folder(path):
     """
     try:
         logger.info("list_shell_folder: intentanto listar %s", path)
-        shell = win32com.client.Dispatch("Shell.Application")
+        shell = _get_shell()
 
         folder = shell.NameSpace(path)
         if folder is None:
@@ -361,7 +375,7 @@ def open_shell_file(shell_path):
     """
     logger.info("open_shell_file: %s", shell_path)
     path_str = str(shell_path)
-    shell = win32com.client.Dispatch("Shell.Application")
+    shell = _get_shell()
 
     # Navegar al pare i trobar l'item
     item = _navigate_to_last_item(path_str, shell)
@@ -383,28 +397,38 @@ def copy_shell_items(shell_paths, dst_folder):
     """
     Copia items MTP (iPhone) al destí usant Shell.CopyHere de Windows.
     Retorna (copiats, errors) amb els noms.
+    Síncron — per a còpies des de la UI fer servir MtpCopyJob (jobs.py).
     """
     import os  # noqa: PLC0415
 
-    shell = win32com.client.Dispatch("Shell.Application")
+    shell = _get_shell()
     dst = shell.NameSpace(dst_folder)
     copied = []
     errors = []
 
     for shell_path in shell_paths:
         try:
-            item = _navigate_to_last_item(str(shell_path), shell)
-            if item is None:
-                errors.append(os.path.basename(str(shell_path)))
-                continue
-            # 0x14 = FOF_NOCONFIRMATION | FOF_SILENT (sense diàlegs)
-            dst.CopyHere(item, 0x14)
-            copied.append(item.Name)
+            copied.append(_copy_single_shell_item(shell, dst, shell_path))
         except Exception as e:  # noqa: BLE001
             logger.warning("Error copiant %s: %s", shell_path, e)
             errors.append(os.path.basename(str(shell_path)))
 
     return copied, errors
+
+
+def _copy_single_shell_item(shell, dst_ns, shell_path):
+    """Copia UN item shell al namespace destí i retorna el seu nom.
+    Llança excepció si falla — el cridador decideix com reportar-ho."""
+    import os  # noqa: PLC0415
+
+    if dst_ns is None:
+        raise ValueError("Namespace destí nul")
+    item = _navigate_to_last_item(str(shell_path), shell)
+    if item is None:
+        raise LookupError(f"Item no trobat: {shell_path}")
+    # 0x14 = FOF_NOCONFIRMATION | FOF_SILENT (sense diàlegs)
+    dst_ns.CopyHere(item, 0x14)
+    return str(item.Name)
 
 
 def _navigate_to_last_item(path_str, shell):  # noqa: PLR0912

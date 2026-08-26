@@ -11,6 +11,10 @@ from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
+# Caché {unitat: es_ssd} — el resultat només depèn de la lletra de unitat, i
+# cada crida sense caché pagava 0.5-10s arrencant processos PowerShell
+_ssd_cache: dict = {}
+
 
 class SecureDelete:
     """Manejador de borrado seguro con detección de tipo de disco"""
@@ -25,6 +29,8 @@ class SecureDelete:
 
         try:
             drive = os.path.splitdrive(path)[0].upper()
+            if drive in _ssd_cache:
+                return _ssd_cache[drive]
 
             # Configurar para ocultar ventana de consola en Windows
             startupinfo = subprocess.STARTUPINFO()
@@ -47,6 +53,7 @@ class SecureDelete:
                     startupinfo=startupinfo,
                 )
                 if "SSD" in result.stdout.upper():
+                    _ssd_cache[drive] = True
                     return True
             except Exception as _e:  # noqa: BLE001
                 pass
@@ -69,10 +76,12 @@ class SecureDelete:
                 )
                 model = result2.stdout.strip()
                 if "SSD" in model.upper() or "SOLID" in model.upper():
+                    _ssd_cache[drive] = True
                     return True
             except Exception as _e:  # noqa: BLE001
                 pass
 
+            _ssd_cache[drive] = False
             return False  # noqa: TRY300
 
         except Exception as _e:  # noqa: BLE001

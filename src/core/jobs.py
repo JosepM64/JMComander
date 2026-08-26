@@ -4,6 +4,7 @@ import shutil
 import threading
 import time
 
+import win32com.client
 from PySide6.QtCore import QObject, QRunnable, Signal
 
 from src.core.fs_utils import copytree_with_progress, get_tree_size
@@ -379,34 +380,25 @@ class MoveJob(BaseJob, ConflictMixin):
             self._copy_job.cancel()
         self.signals.cancelled.emit()
 
-    def run(self):
+    def run(self):  # noqa: PLR0912
         total = len(self.src_list)
         if total == 0:
             self.signals.finished.emit()
             return
 
-        self._emit_progress("Calculando tamaño total...", 0)
-        sizes = []
-
-        def cancel_check():
-            return self.is_cancelled
-
-        for i, src in enumerate(self.src_list):
-            if self._check_cancelled():
-                return
-            progress_percent = int((i / total) * 100) if total > 0 else 0
-            self._emit_progress(f"Calculando tamaño: {os.path.basename(src)}", progress_percent)
-            try:
-                size = get_tree_size(src, cancel_flag=cancel_check)
-                sizes.append(size)
-            except Exception:  # noqa: BLE001
-                sizes.append(0)
-
-        total_size = sum(sizes) if sizes else 1
-        self.signals.total_size.emit(total_size)
+        # Fast-path: origen i destí al MATEIX volum -> rename directe (instantani).
+        # La ruta copia+esborra era ~1000x més lenta per res aquí.
+        dst_drive = os.path.splitdrive(os.path.abspath(self.dst_folder))[0].lower()
+        if dst_drive and all(
+            os.path.splitdrive(os.path.abspath(s))[0].lower() == dst_drive
+            for s in self.src_list
+        ):
+            self._run_same_volume(total)
+            return
 
         # Reutilitzar CopyJob: còpia amb progrés, cancel·lació i paral·lelisme
-        # (shutil.move entre unitats faria la còpia a cegues, sense progrés ni cancel)
+        # (shutil.move entre unitats faria la còpia a cegues, sense progrés ni cancel).
+        # Sense bucle de mida propi: CopyJob ja calcula la mida i emet total_size.
         copy_job = CopyJob(self.src_list, self.dst_folder)
         self._copy_job = copy_job
         copy_job._apply_all_decision = self._apply_all_decision  # noqa: SLF001
@@ -440,6 +432,93 @@ class MoveJob(BaseJob, ConflictMixin):
                 logger.warning(f"[MoveJob] No se pudo eliminar original {src}: {e}")  # noqa: G004
 
         self._finish_or_cancel()
+
+    def _run_same_volume(self, total):
+        """Mateix volum: rename directe amb gestió de conflictes reutilitzada."""
+        for i, src in enumerate(self.src_list):
+            if self._check_cancelled():
+                return
+            filename = os.path.basename(src)
+            self.signals.file_started.emit(filename, i + 1, total)
+            raw_dst = os.path.join(self.dst_folder, filename)
+
+            proceed, dst = self.check_conflicts(src, raw_dst, i, total)
+            if self._check_cancelled():
+                return
+            if not proceed:
+                continue
+
+            try:
+                # replace: rename si no existeix, sobreescriptura atòmica si sí
+                os.replace(src, dst)
+                self._emit_progress_for_item("Moviendo", filename, i, total)
+            except OSError as e:
+                logger.warning(f"[MoveJob] Rename failed {src} -> {dst}: {e}")  # noqa: G004
+                if not self.is_cancelled:
+                    self.signals.error.emit(f"No se pudo mover {filename}: {e}")
+
+        self._finish_or_cancel()
+
+
+class MtpCopyJob(BaseJob):
+    """Còpia des de MTP/iPhone en un thread worker (la versió síncrona
+    congelava la UI minuts amb molts fitxers o USB lent).
+    Nota COM: el worker té el seu propi apartament — NO fer servir el
+    singleton _get_shell() del thread principal, crear un Dispatch aquí."""
+
+    def __init__(self, shell_paths, dst_folder):
+        super().__init__()
+        self.shell_paths = list(shell_paths)
+        self.dst_folder = dst_folder
+
+    def run(self):  # noqa: PLR0912
+        import pythoncom  # noqa: PLC0415
+
+        from src.core.mtp_handler import _copy_single_shell_item  # noqa: PLC0415, SLF001
+
+        pythoncom.CoInitialize()
+        try:
+            total = len(self.shell_paths)
+            if total == 0:
+                self.signals.finished.emit()
+                return
+
+            try:
+                shell = win32com.client.Dispatch("Shell.Application")
+                dst_ns = shell.NameSpace(self.dst_folder)
+            except Exception as e:  # noqa: BLE001
+                self.signals.error.emit(f"Error accedint a Shell/destí: {e}")
+                self.signals.cancelled.emit()
+                return
+            if dst_ns is None:
+                self.signals.error.emit(f"Destí no vàlid: {self.dst_folder}")
+                self.signals.cancelled.emit()
+                return
+
+            copied = 0
+            errors = []
+            for i, sp in enumerate(self.shell_paths):
+                if self._check_cancelled():
+                    return
+                name = os.path.basename(str(sp).rstrip("\\/")) or str(sp)
+                self._emit_progress(
+                    f"Copiant del iPhone: {name} ({i + 1}/{total})...", int((i / total) * 100)
+                )
+                self.signals.file_started.emit(name, i + 1, total)
+                try:
+                    _copy_single_shell_item(shell, dst_ns, sp)
+                    copied += 1
+                    self.signals.file_finished.emit(name, True)
+                except Exception as e:  # noqa: BLE001
+                    errors.append(name)
+                    if not self.is_cancelled:
+                        self.signals.error.emit(f"Error copiant {name}: {e}")
+                    self.signals.file_finished.emit(name, False)
+
+            logger.info("[MtpCopyJob] Copiats %d/%d, errors %d", copied, total, len(errors))
+            self._finish_or_cancel()
+        finally:
+            pythoncom.CoUninitialize()
 
 
 class DeleteJob(BaseJob):

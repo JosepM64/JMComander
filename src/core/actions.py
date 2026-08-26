@@ -105,21 +105,13 @@ def _copy_files(ctx: ActionContext):
         ctx.parent, "Copiar", f"¿Copiar {len(s)} items?"
     ) == QMessageBox.StandardButton.Yes:
         if _is_shell_path(s[0]):
-            # MTP/iPhone: copiar via Shell.CopyHere (no shutil)
-            from src.core.mtp_handler import copy_shell_items  # noqa: PLC0415
+            # MTP/iPhone: còpia en background (la síncrona congelava la UI)
+            if ctx.run_operation:
+                from src.core.jobs import MtpCopyJob  # noqa: PLC0415
 
-            copied, errors = copy_shell_items(s, d)
-            if errors:
-                QMessageBox.warning(
-                    ctx.parent,
-                    "Copia iPhone",
-                    f"Error copiando {len(errors)} items:\n{', '.join(errors)}",
-                )
-            elif copied:
-                QMessageBox.information(
-                    ctx.parent, "Copia iPhone", f"Copiados {len(copied)} items del iPhone a {d}"
-                )
-            ctx.active_panel.refresh()
+                job = MtpCopyJob(s, d)
+                job.signals.finished.connect(lambda: ctx.active_panel.refresh())
+                ctx.run_operation(job, "Copiant del iPhone")
             return
         if ctx.run_operation:
             ctx.run_operation(ctx.engine.queue_copy(s, d), "Copiando")
@@ -132,21 +124,13 @@ def _move_files(ctx: ActionContext):
         ctx.parent, "Mover", f"¿Mover {len(s)} items?"
     ) == QMessageBox.StandardButton.Yes:
         if _is_shell_path(s[0]):
-            # MTP/iPhone: copiar (no hi ha move natiu MTP fiable)
-            from src.core.mtp_handler import copy_shell_items  # noqa: PLC0415
+            # MTP/iPhone: no hi ha move natiu fiable -> còpia en background
+            if ctx.run_operation:
+                from src.core.jobs import MtpCopyJob  # noqa: PLC0415
 
-            copied, errors = copy_shell_items(s, d)
-            if errors:
-                QMessageBox.warning(
-                    ctx.parent,
-                    "Mover iPhone",
-                    f"Error moviendo {len(errors)} items:\n{', '.join(errors)}",
-                )
-            elif copied:
-                QMessageBox.information(
-                    ctx.parent, "Mover iPhone", f"Movidos {len(copied)} items del iPhone a {d}"
-                )
-            ctx.active_panel.refresh()
+                job = MtpCopyJob(s, d)
+                job.signals.finished.connect(lambda: ctx.active_panel.refresh())
+                ctx.run_operation(job, "Copiant del iPhone")
             return
         if ctx.run_operation:
             ctx.run_operation(ctx.engine.queue_move(s, d), "Moviendo")

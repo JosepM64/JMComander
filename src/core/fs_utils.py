@@ -220,40 +220,42 @@ def copytree_with_progress(
             return False
 
     try:
-        for root, dirs, files in os.walk(src):
-            if cancel_flag and cancel_flag():
-                return False, total_copied
+        # Un sol executor per TOTA la còpia — crear/destruir un pool per
+        # directori era overhead pur en arbres amb moltes carpetes
+        with ThreadPoolExecutor(max_workers=PARALLEL_COPY_WORKERS) as executor:
+            for root, dirs, files in os.walk(src):
+                if cancel_flag and cancel_flag():
+                    return False, total_copied
 
-            if any(name in RESERVED_NAMES for name in root.split(os.sep)):
-                continue
-
-            rel_root = os.path.relpath(root, src)
-            dst_root = dst if rel_root == "." else os.path.join(dst, rel_root)
-
-            os.makedirs(dst_root, exist_ok=True)
-
-            for dir_name in dirs:
-                dst_dir = os.path.join(dst_root, dir_name)
-                os.makedirs(dst_dir, exist_ok=True)
-
-            # Copiar fitxers del directori actual en paral·lel
-            tasks = []
-            for file_name in files:
-                if file_name in RESERVED_NAMES:
-                    continue
-                src_file = os.path.join(root, file_name)
-                dst_file = os.path.join(dst_root, file_name)
-
-                if not should_overwrite_file(src_file, dst_file, action):
-                    files_skipped += 1
+                if any(name in RESERVED_NAMES for name in root.split(os.sep)):
                     continue
 
-                tasks.append((src_file, dst_file))
+                rel_root = os.path.relpath(root, src)
+                dst_root = dst if rel_root == "." else os.path.join(dst, rel_root)
 
-            if not tasks:
-                continue
+                os.makedirs(dst_root, exist_ok=True)
 
-            with ThreadPoolExecutor(max_workers=PARALLEL_COPY_WORKERS) as executor:
+                for dir_name in dirs:
+                    dst_dir = os.path.join(dst_root, dir_name)
+                    os.makedirs(dst_dir, exist_ok=True)
+
+                # Copiar fitxers del directori actual en paral·lel
+                tasks = []
+                for file_name in files:
+                    if file_name in RESERVED_NAMES:
+                        continue
+                    src_file = os.path.join(root, file_name)
+                    dst_file = os.path.join(dst_root, file_name)
+
+                    if not should_overwrite_file(src_file, dst_file, action):
+                        files_skipped += 1
+                        continue
+
+                    tasks.append((src_file, dst_file))
+
+                if not tasks:
+                    continue
+
                 futures = {executor.submit(_copy_single_file, s, d): s for s, d in tasks}
                 for future in as_completed(futures):
                     if cancel_flag and cancel_flag():
@@ -265,8 +267,8 @@ def copytree_with_progress(
                             progress_callback(total_copied)
                             last_emit_bytes = total_copied
 
-            if cancelled_by_worker:
-                return False, total_copied
+                if cancelled_by_worker:
+                    return False, total_copied
 
         return True, total_copied
 

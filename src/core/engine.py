@@ -2,7 +2,7 @@ import logging
 
 from PySide6.QtCore import QObject, QThreadPool
 
-from src.core.jobs import CopyJob, DeleteJob, MoveJob, SecureDeleteJob
+from src.core.jobs import CopyJob, DeleteJob, MtpCopyJob, MoveJob, SecureDeleteJob
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,11 @@ class OperationEngine(QObject):
 
     def queue_move(self, src_list, dst_folder):
         job = MoveJob(src_list, dst_folder)
+        self._prepare_job(job)
+        return job
+
+    def queue_mtp_copy(self, shell_paths, dst_folder):
+        job = MtpCopyJob(shell_paths, dst_folder)
         self._prepare_job(job)
         return job
 
