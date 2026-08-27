@@ -467,7 +467,10 @@ def register(api):
 
 def run_disk_space(api):
     path = api.active_panel.current_path
-    dlg = DiskSpaceDialog(path, api.get_parent_window())
+    # Pujar a l'arrel del disc per obtenir una vista global de la unitat activa
+    drive, _ = os.path.splitdrive(path)
+    root = drive + os.sep if drive else path
+    dlg = DiskSpaceDialog(root, api.get_parent_window())
     dlg.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
     dlg.show()
 
