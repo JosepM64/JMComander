@@ -1,6 +1,10 @@
-import os  # noqa: INP001
+import os
 import shutil
 import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
 
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
@@ -12,6 +16,8 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QTreeWidget,
+    QTreeWidgetItem,
     QVBoxLayout,
 )
 
@@ -42,6 +48,87 @@ class EmptyFoldersWorker(QThread):
                 self.progress.emit(f"Verificando: {root}", len(empty_folders))
 
         self.finished.emit(empty_folders)
+
+
+@dataclass
+class FolderSize:
+    path: str
+    name: str
+    size: int
+    is_drive_root: bool = False
+
+
+class FolderSizeWorker(QThread):
+    """Worker en segon pla que calcula mides de carpetes directes d'un directori."""
+    progress = Signal(str, int)  # status text, folders_scanned
+    folder_found = Signal(FolderSize)  # emitted per folder for incremental UI
+    finished = Signal(list)  # list of FolderSize
+    error = Signal(str)
+
+    def __init__(self, path: str):
+        super().__init__()
+        self.path = path
+        self.is_cancelled = False
+
+    def cancel(self):
+        self.is_cancelled = True
+
+    def run(self):
+        try:
+            results = []
+            folders_scanned = 0
+
+            # Check if it's a drive root (e.g., C:\, D:\)
+            is_drive_root = len(Path(self.path).parts) <= 1
+
+            # Use os.scandir for speed
+            with os.scandir(self.path) as it:
+                for entry in it:
+                    if self.is_cancelled:
+                        self.finished.emit([])
+                        return
+
+                    if entry.is_dir(follow_symlinks=False):
+                        try:
+                            # Calculate size recursively (non-blocking check)
+                            size = self._get_folder_size(entry.path)
+                            fs = FolderSize(
+                                path=entry.path,
+                                name=entry.name,
+                                size=size,
+                                is_drive_root=is_drive_root,
+                            )
+                            results.append(fs)
+                            self.folder_found.emit(fs)
+                        except (OSError, PermissionError):
+                            # Skip folders we can't access
+                            pass
+                        folders_scanned += 1
+                        self.progress.emit(f"Escaneando: {entry.name}", folders_scanned)
+
+            self.finished.emit(results)
+
+        except Exception as e:  # noqa: BLE001
+            self.error.emit(f"Error escaneant {self.path}: {e!s}")
+
+    def _get_folder_size(self, path: str) -> int:
+        """Calcula la mida total d'una carpeta (recursiu)."""
+        total = 0
+        try:
+            with os.scandir(path) as it:
+                for entry in it:
+                    if self.is_cancelled:
+                        return total
+                    try:
+                        if entry.is_file(follow_symlinks=False):
+                            total += entry.stat().st_size
+                        elif entry.is_dir(follow_symlinks=False):
+                            total += self._get_folder_size(entry.path)
+                    except (OSError, PermissionError):
+                        continue
+        except (OSError, PermissionError):
+            pass
+        return total
 
 
 class DuplicateFoldersWorker(QThread):
@@ -213,21 +300,196 @@ class FolderSearchDialog(QDialog):
             self.accept()
 
 
+def _format_size(bytes_val: int) -> str:
+    """Format bytes to human readable string."""
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
+        if bytes_val < 1024 or unit == "TB":
+            return f"{bytes_val:.1f} {unit}"
+        bytes_val /= 1024
+    return f"{bytes_val:.1f} PB"
+
+
+class DiskSpaceDialog(QDialog):
+    """Diàleg amb vista d'arbre per drill-down de carpetes (estil WizTree/WinDirStat)."""
+    def __init__(self, path: str, parent=None):
+        super().__init__(parent)
+        self.path = path
+        self.current_path = path
+        self.worker: Optional[FolderSizeWorker] = None
+        self.setWindowTitle(f"Espacio en Disco - {path}")
+        self.resize(900, 600)
+
+        layout = QVBoxLayout(self)
+
+        # Path bar with back button
+        path_bar = QHBoxLayout()
+        self.btn_back = QPushButton("← Subir")
+        self.btn_back.clicked.connect(self.go_up)
+        self.btn_back.setEnabled(False)
+        path_bar.addWidget(self.btn_back)
+
+        self.lbl_current_path = QLabel(path)
+        self.lbl_current_path.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        path_bar.addWidget(self.lbl_current_path, 1)
+        layout.addLayout(path_bar)
+
+        # Tree widget for folders with sizes
+        self.tree = QTreeWidget()
+        self.tree.setHeaderLabels(["Carpeta", "Mida", "%"])
+        self.tree.setColumnWidth(0, 500)
+        self.tree.setColumnWidth(1, 120)
+        self.tree.setColumnWidth(2, 60)
+        self.tree.setSortingEnabled(True)
+        self.tree.itemDoubleClicked.connect(self.on_folder_double_clicked)
+        self.tree.itemSelectionChanged.connect(self.on_selection_changed)
+        layout.addWidget(self.tree)
+
+        # Progress
+        self.lbl_status = QLabel("Preparat per escanejar")
+        layout.addWidget(self.lbl_status)
+
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 0)  # Indeterminate while scanning
+        layout.addWidget(self.progress)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        self.btn_scan = QPushButton("Escanear")
+        self.btn_scan.clicked.connect(self.start_scan)
+        self.btn_cancel = QPushButton("Cancelar")
+        self.btn_cancel.clicked.connect(self.cancel_scan)
+        self.btn_cancel.setEnabled(False)
+        self.btn_open = QPushButton("Obrir al Explorador")
+        self.btn_open.clicked.connect(self.open_selected)
+        self.btn_open.setEnabled(False)
+        btn_layout.addWidget(self.btn_scan)
+        btn_layout.addWidget(self.btn_cancel)
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.btn_open)
+        layout.addLayout(btn_layout)
+
+        # Auto-start scan
+        self.start_scan()
+
+    def start_scan(self):
+        self.btn_scan.setEnabled(False)
+        self.btn_cancel.setEnabled(True)
+        self.btn_open.setEnabled(False)
+        self.tree.clear()
+        self.progress.setRange(0, 0)
+        self.lbl_status.setText(f"Escanejant {self.current_path}...")
+
+        self.worker = FolderSizeWorker(self.current_path)
+        self.worker.folder_found.connect(self.on_folder_found)
+        self.worker.finished.connect(self.on_scan_finished)
+        self.worker.error.connect(self.on_scan_error)
+        self.worker.progress.connect(lambda t, v: self.lbl_status.setText(t))
+        self.worker.start()
+
+    def cancel_scan(self):
+        if self.worker and self.worker.isRunning():
+            self.worker.cancel()
+            self.lbl_status.setText("Escaneig cancel·lat")
+            self.btn_scan.setEnabled(True)
+            self.btn_cancel.setEnabled(False)
+            self.progress.setRange(0, 100)
+            self.progress.setValue(0)
+
+    def on_folder_found(self, fs: FolderSize):
+        """Afegir carpeta a l'arbre incrementalment."""
+        item = QTreeWidgetItem([
+            fs.name,
+            _format_size(fs.size),
+            ""  # percentage filled later
+        ])
+        item.setData(0, Qt.ItemDataRole.UserRole, fs.path)
+        item.setData(1, Qt.ItemDataRole.UserRole, fs.size)
+        self.tree.addTopLevelItem(item)
+
+    def on_scan_finished(self, results: list):
+        """Calcular percentatges i habilitar UI."""
+        total_size = sum(fs.size for fs in results)
+        if total_size > 0:
+            for i in range(self.tree.topLevelItemCount()):
+                item = self.tree.topLevelItem(i)
+                size = item.data(1, Qt.ItemDataRole.UserRole)
+                pct = (size / total_size) * 100
+                item.setText(2, f"{pct:.1f}%")
+
+        self.lbl_status.setText(f"Completat: {self.tree.topLevelItemCount()} carpetes, total {_format_size(total_size)}")
+        self.btn_scan.setEnabled(True)
+        self.btn_cancel.setEnabled(False)
+        self.btn_open.setEnabled(True)
+        self.progress.setRange(0, 100)
+        self.progress.setValue(100)
+
+    def on_scan_error(self, msg: str):
+        self.lbl_status.setText(f"Error: {msg}")
+        self.btn_scan.setEnabled(True)
+        self.btn_cancel.setEnabled(False)
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+
+    def on_folder_double_clicked(self, item: QTreeWidgetItem, _column: int):
+        path = item.data(0, Qt.ItemDataRole.UserRole)
+        if path and os.path.isdir(path):
+            self.drill_down(path)
+
+    def drill_down(self, path: str):
+        self.current_path = path
+        self.lbl_current_path.setText(path)
+        self.btn_back.setEnabled(True)
+        self.start_scan()
+
+    def go_up(self):
+        parent = os.path.dirname(self.current_path)
+        if parent and parent != self.current_path:
+            self.current_path = parent
+            self.lbl_current_path.setText(parent)
+            self.btn_back.setEnabled(parent != self.path)
+            self.start_scan()
+
+    def on_selection_changed(self):
+        selected = self.tree.selectedItems()
+        self.btn_open.setEnabled(bool(selected))
+
+    def open_selected(self):
+        selected = self.tree.selectedItems()
+        if selected:
+            path = selected[0].data(0, Qt.ItemDataRole.UserRole)
+            if path and os.path.exists(path):
+                subprocess.Popen(f'explorer "{path}"', shell=True)
+
+
 def register(api):
-    pass
+    api.register_action(
+        id="disk_space",
+        text="Espacio en Disco",
+        tooltip="Mostrar uso de espacio con drill-down recursivo",
+        icon=":icons/disk_space.png",
+        callback=run_disk_space,
+    )
+    api.register_action(
+        id="empty_folders",
+        text="Carpetas Vacías",
+        tooltip="Buscar carpetas vacías",
+        icon=":icons/folder_empty.png",
+        callback=run_empty_folders,
+    )
+    api.register_action(
+        id="duplicate_folders",
+        text="Carpetas Duplicadas",
+        tooltip="Buscar carpetas con nombres duplicados",
+        icon=":icons/folder_duplicate.png",
+        callback=run_duplicate_folders,
+    )
 
 
 def run_disk_space(api):
     path = api.active_panel.current_path
-    total, used, free = shutil.disk_usage(path)
-    gb = 1024**3
-    msg = (
-        f"Ubicación: {path}\n\n"
-        f"Total: {total / gb:.2f} GB\n"
-        f"Usado: {used / gb:.2f} GB\n"
-        f"Libre: {free / gb:.2f} GB"
-    )
-    QMessageBox.information(api.get_parent_window(), "Espacio en Disco", msg)
+    dlg = DiskSpaceDialog(path, api.get_parent_window())
+    dlg.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+    dlg.show()
 
 
 def run_empty_folders(api):

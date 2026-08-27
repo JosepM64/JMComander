@@ -45,6 +45,7 @@ class ImageConverterWorker(QThread):
         quality,
         resize_width,
         resize_height,
+        maintain_ratio,
         preserve_original,
         parent=None,
     ):
@@ -55,6 +56,7 @@ class ImageConverterWorker(QThread):
         self.quality = quality
         self.resize_width = resize_width
         self.resize_height = resize_height
+        self.maintain_ratio = maintain_ratio
         self.preserve_original = preserve_original
         self.is_cancelled = False
 
@@ -75,9 +77,23 @@ class ImageConverterWorker(QThread):
 
                 img = Image.open(src_path)
 
-                if self.resize_width > 0 and self.resize_height > 0:
+                # Calculate target dimensions respecting aspect ratio if requested
+                orig_w, orig_h = img.size
+                target_w = self.resize_width
+                target_h = self.resize_height
+
+                if self.maintain_ratio and (target_w > 0 or target_h > 0):
+                    if target_w > 0 and target_h == 0:
+                        # Width specified, calculate height from ratio
+                        target_h = int(orig_h * target_w / orig_w)
+                    elif target_h > 0 and target_w == 0:
+                        # Height specified, calculate width from ratio
+                        target_w = int(orig_w * target_h / orig_h)
+                    # If both > 0, use as-is (user explicitly set both)
+
+                if target_w > 0 and target_h > 0:
                     img = img.resize(
-                        (self.resize_width, self.resize_height), Image.Resampling.LANCZOS
+                        (target_w, target_h), Image.Resampling.LANCZOS
                     )
 
                 if self.preserve_original:
@@ -286,6 +302,7 @@ class ImageConverterDialog(QDialog):
             quality=self.spin_quality.value(),
             resize_width=self.spin_width.value(),
             resize_height=self.spin_height.value(),
+            maintain_ratio=self.chk_maintain_ratio.isChecked(),
             preserve_original=self.radio_preserve.isChecked(),
         )
 
