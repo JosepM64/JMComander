@@ -462,27 +462,7 @@ class DiskSpaceDialog(QDialog):
 
 
 def register(api):
-    api.register_action(
-        id="disk_space",
-        text="Espacio en Disco",
-        tooltip="Mostrar uso de espacio con drill-down recursivo",
-        icon=":icons/disk_space.png",
-        callback=run_disk_space,
-    )
-    api.register_action(
-        id="empty_folders",
-        text="Carpetas Vacías",
-        tooltip="Buscar carpetas vacías",
-        icon=":icons/folder_empty.png",
-        callback=run_empty_folders,
-    )
-    api.register_action(
-        id="duplicate_folders",
-        text="Carpetas Duplicadas",
-        tooltip="Buscar carpetas con nombres duplicados",
-        icon=":icons/folder_duplicate.png",
-        callback=run_duplicate_folders,
-    )
+    pass
 
 
 def run_disk_space(api):
