@@ -1,5 +1,13 @@
 # Changelog JMComander
 
+## Versió 6.9.14 - Agost 2026
+
+### Correccions
+- **`disk_space` arrencava al directori actiu**: el plugin començava a escanejar allà on estaves navegant (ex. `C:\Users\JM` o `D:\Documents\BBF\2025`). Ara puja a l'arrel del disc (`os.path.splitdrive`) i mostra una vista global de la unitat. Des del tree, doble-clic a una carpeta per drill-down.
+- **`disk_space` no apareixia al menú**: la funció `register()` cridava `api.register_action()` però ja ho feia el `plugin.json`. Doble registre provocava que el plugin quedés ocult. Ara `register()` és `pass` (com la resta de plugins) i el registre ve només de `plugin.json`.
+- **`image_converter` ignorava el checkbox de proporcions**: el resize només s'aplicava si ambdues dimensions estaven plenes. Ara, si "Mantener proporción" està marcat, calcular la dimensió que falta a partir de la mida original. Si ambdues estan plenes, s'apliquen tal qual (voluntat explícita).
+- **`disk_space` drill-down recursiu (nou)**: vista d'arbre (Carpeta/Mida/%) amb escaneig en background (`FolderSizeWorker` + `os.scandir`), percentatges calculats al final, botó "← Subir" per navegar cap amunt i "Obrir al Explorador" per obrir la carpeta seleccionada.
+
 ## Versió 6.9.13 - Agost 2026
 
 ### Fase 4 — SoC, consolidació d'utilitats i neteja de codi mort

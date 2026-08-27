@@ -2,7 +2,7 @@
 
 ## Descripció
 Administrador de fitxers de doble panel. Python 3.13 + PySide6.
-- **Versió**: 6.9.13 | **Data**: 2026-08-26
+- **Versió**: 6.9.14 | **Data**: 2026-08-27
 
 ## Estructura
 ```
@@ -10,7 +10,7 @@ JMComander/
 ├── main.py                    # Entry point
 ├── build.bat                  # Build ràpid
 ├── src/
-│   ├── version.py             # Versió: 6.9.13
+│   ├── version.py             # Versió: 6.9.14
 │   ├── core/                  # Lògica
 │   │   ├── jobs.py, fs_utils.py, config.py, actions.py
 │   │   ├── directory_watcher.py   # [NEW v6.8.0] Watcher + polling extret de panel.py
@@ -61,6 +61,11 @@ send2trash, rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musi
   - Rendiment filtre: fast-path a filterAcceptsRow (fill directe root sense filtre)
   - Duplicar (F9) en background: nou DuplicateJob, evita congelació UI amb carpetes grans
   - toolbar_manager: fix reconstructió del botó de Plugins (métode inexistent)
+- **v6.9.14** (2026-08-27): Correccions pendents
+  - **disk_space** arrencava al directori actiu (ex. C:\Users\JM); ara puja a l'arrel del disc amb `os.path.splitdrive` i mostra vista global
+  - **disk_space** no apareixia al menú: `register()` duplicava el registre de `plugin.json`; ara `pass` (patró de la resta de plugins)
+  - **image_converter**: el checkbox "Mantener proporción" no tenia cap efecte; ara calcula la dimensió que falta quan el checkbox està marcat
+  - **disk_space drill-down recursiu** (nou): vista d'arbre amb mides agregades, percentatges, botó "← Subir" i "Obrir al Explorador"; escaneig en background amb `FolderSizeWorker` + `os.scandir`
 - **v6.9.11** (2026-08-25): Fase 2 rendiment navegació
   - config.json només es guarda al closeEvent; menú recents lazy (botó pressed)
   - Fix senyal fantasma: path_input textEdited en lloc de textChanged
