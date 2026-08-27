@@ -261,12 +261,8 @@ def _sort_key(name):
     return (len(parts), name.lower())
 
 
-def _format_size(size):
-    for unit in ("B", "KB", "MB", "GB"):
-        if size < 1024:
-            return f"{size:.1f} {unit}"
-        size /= 1024
-    return f"{size:.1f} TB"
+# Font única de formateig (core.utils) — abans duplicat aquí amb taula pròpia
+from src.core.utils import format_size as _format_size  # noqa: E402, PLC0415
 
 
 def _format_time(timestamp):

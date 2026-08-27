@@ -112,4 +112,5 @@ class ToolbarManager(QObject):
                 if key == "settings":
                     new_w.clicked.connect(self.main_window.open_settings)
                 elif key == "plugins":
-                    new_w.clicked.connect(self.main_window.show_plugins_menu)
+                    # Botó InstantPopup amb setMenu (no clicked): regenerar el menú
+                    self.main_window.update_plugins_menu()

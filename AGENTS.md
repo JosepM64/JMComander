@@ -2,7 +2,7 @@
 
 ## Descripció
 Administrador de fitxers de doble panel. Python 3.13 + PySide6.
-- **Versió**: 6.9.12 | **Data**: 2026-08-25
+- **Versió**: 6.9.13 | **Data**: 2026-08-26
 
 ## Estructura
 ```
@@ -10,7 +10,7 @@ JMComander/
 ├── main.py                    # Entry point
 ├── build.bat                  # Build ràpid
 ├── src/
-│   ├── version.py             # Versió: 6.9.12
+│   ├── version.py             # Versió: 6.9.13
 │   ├── core/                  # Lògica
 │   │   ├── jobs.py, fs_utils.py, config.py, actions.py
 │   │   ├── directory_watcher.py   # [NEW v6.8.0] Watcher + polling extret de panel.py
@@ -53,6 +53,14 @@ send2trash, rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musi
   - TTL negatiu iPhone 5min (evita escaneig COM a cada navegació sense iPhone)
   - ThreadPoolExecutor únic per còpia (no un per directori)
   - Caché detecció SSD per unitat
+- **v6.9.13** (2026-08-26): Fase 4 SoC, consolidació d'utilitats i neteja de codi mort
+  - format_size consolidat: única funció a core/utils.py, delegada per sync i shell_browser
+  - Noms reservats Windows unificats: RESERVED_NAMES = WINDOWS_RESERVED_NAMES ∪ {".git"}
+  - Codi mort esborrat: progress_dialog.py (291 línies), _refresh_views, change_directory_dialog, exit_btn
+  - Acció "Acerca de" reparada: _show_about crida show_about_dialog
+  - Rendiment filtre: fast-path a filterAcceptsRow (fill directe root sense filtre)
+  - Duplicar (F9) en background: nou DuplicateJob, evita congelació UI amb carpetes grans
+  - toolbar_manager: fix reconstructió del botó de Plugins (métode inexistent)
 - **v6.9.11** (2026-08-25): Fase 2 rendiment navegació
   - config.json només es guarda al closeEvent; menú recents lazy (botó pressed)
   - Fix senyal fantasma: path_input textEdited en lloc de textChanged

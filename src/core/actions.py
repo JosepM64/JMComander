@@ -227,6 +227,12 @@ def _edit_file(ctx: ActionContext):
         subprocess.Popen(["notepad.exe", s[0]])
 
 
+def _show_about(ctx: ActionContext):
+    # El diàleg About viu a MainWindow — abans l'acció no tenia handler i no feia res
+    if hasattr(ctx.parent, "show_about_dialog"):
+        ctx.parent.show_about_dialog()
+
+
 # === Handlers per a plugins ===
 
 def _run_compare_dirs(api):
@@ -363,7 +369,8 @@ def register_core_actions():
     )
     action_registry.register(
         Action(id="about", name="Acerca de", icon="mdi-information",
-               category=ActionCategory.HELP.value, order=1)
+               category=ActionCategory.HELP.value, order=1,
+               handler=_show_about)
     )
 
 

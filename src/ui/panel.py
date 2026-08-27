@@ -2,7 +2,6 @@ import fnmatch
 import logging
 import os
 import re
-import shutil
 import subprocess
 import time
 import winreg
@@ -212,11 +211,6 @@ class FilePanel(QWidget):
         self._setup_ext_filter_menu()
         nav.addWidget(self.ext_filter_btn)
 
-        self.exit_btn = QPushButton("×")
-        self.exit_btn.setFixedSize(20, 20)
-        self.exit_btn.hide()
-        nav.addWidget(self.exit_btn)
-
         layout.addWidget(self.nav_frame)
 
         # Barra de progreso in-line (se muestra solo durante operaciones)
@@ -287,9 +281,6 @@ class FilePanel(QWidget):
         self.shell_browser = ShellBrowser() if ShellBrowser else None
         if self.shell_browser:
             self.shell_browser.itemDoubleClicked.connect(self._on_archive_item_double_clicked)
-            self.shell_browser.itemClicked.connect(
-                lambda item, col: self._on_shell_item_clicked(item)
-            )
             self.shell_browser.viewport().installEventFilter(self)
             self.shell_browser.installEventFilter(self)
 
@@ -305,10 +296,6 @@ class FilePanel(QWidget):
         layout.addLayout(self.stack)
         self.current_view_widget = self.tree
         self._setup_context_menus()
-
-    def _on_shell_item_clicked(self, item):
-        """Click simple en un item del ShellBrowser (res per ara, només selecció)."""
-        return
 
     def _setup_view(self, view):
         view.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -1234,20 +1221,6 @@ class FilePanel(QWidget):
             return
         self._on_watcher_refresh(self.current_path)
 
-    def _refresh_views(self):
-        # Update all views to show current directory
-        if not os.path.exists(self.current_path):
-            return
-        try:
-            source_root_idx = self.source_model.index(self.current_path)
-            self.proxy_model.set_current_root_source_index(source_root_idx)
-            idx = self.proxy_model.mapFromSource(source_root_idx)
-            for v in [self.tree, self.list, self.icon]:
-                v.setRootIndex(idx)
-                v.update()
-        except Exception as e:
-            logger.exception("Error refreshing views: %s", e)  # noqa: TRY401
-
     def clear_selection(self):
         self.current_view_widget.clearSelection()
 
@@ -1348,32 +1321,14 @@ class FilePanel(QWidget):
         selected = self.get_selected_paths()
         if not selected:
             return
+        # En background (F9 sobre una carpeta gran congelava la UI)
+        from src.core.engine import OperationEngine  # noqa: PLC0415
+        from src.core.jobs import DuplicateJob  # noqa: PLC0415
 
-        duplicated = []
-        for p in selected:
-            basename = os.path.basename(p)
-            name, ext = os.path.splitext(basename)
-            parent_dir = os.path.dirname(p)
-            copy_name = f"{name}-copia{ext}"
-            copy_path = os.path.join(parent_dir, copy_name)
-
-            counter = 1
-            while os.path.exists(copy_path):
-                copy_name = f"{name}-copia ({counter}){ext}"
-                copy_path = os.path.join(parent_dir, copy_name)
-                counter += 1
-
-            try:
-                if os.path.isdir(p):
-                    shutil.copytree(p, copy_path, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(p, copy_path)
-                duplicated.append(copy_name)
-            except Exception as e:  # noqa: BLE001
-                logger.debug("Error duplicando %s: %s", p, e)
-
-        if duplicated:
-            self.refresh()
+        engine = OperationEngine.instance()
+        job = DuplicateJob(selected)
+        job.signals.finished.connect(self.refresh)
+        engine.start_job(job)
 
     def _setup_context_menus(self):
         for v in [self.tree, self.list, self.icon]:

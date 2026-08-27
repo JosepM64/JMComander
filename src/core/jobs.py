@@ -521,6 +521,51 @@ class MtpCopyJob(BaseJob):
             pythoncom.CoUninitialize()
 
 
+class DuplicateJob(BaseJob):
+    """Duplica la selecció com 'nom-copia.ext' al mateix directori.
+    Abans corria shutil al thread d'UI: F9 sobre una carpeta gran congelava tot."""
+
+    def __init__(self, src_list):
+        super().__init__()
+        self.src_list = list(src_list)
+
+    def run(self):
+        total = len(self.src_list)
+        if total == 0:
+            self.signals.finished.emit()
+            return
+
+        duplicated = []
+        for i, p in enumerate(self.src_list):
+            if self._check_cancelled():
+                return
+            basename = os.path.basename(p)
+            name, ext = os.path.splitext(basename)
+            parent_dir = os.path.dirname(p)
+            copy_path = os.path.join(parent_dir, f"{name}-copia{ext}")
+
+            counter = 1
+            while os.path.exists(copy_path):
+                copy_path = os.path.join(parent_dir, f"{name}-copia ({counter}){ext}")
+                counter += 1
+
+            self._emit_progress_for_item("Duplicando", basename, i, total)
+            self.signals.file_started.emit(basename, i + 1, total)
+            try:
+                if os.path.isdir(p):
+                    shutil.copytree(p, copy_path, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(p, copy_path)
+                duplicated.append(os.path.basename(copy_path))
+                self.signals.file_finished.emit(basename, True)
+            except Exception as e:  # noqa: BLE001
+                logger.debug("Error duplicando %s: %s", p, e)
+                self.signals.file_finished.emit(basename, False)
+
+        logger.info("[DuplicateJob] %d elements duplicats", len(duplicated))
+        self._finish_or_cancel()
+
+
 class DeleteJob(BaseJob):
     def __init__(self, src_list, permanent=False):
         super().__init__()

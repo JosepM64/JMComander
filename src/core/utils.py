@@ -5,7 +5,7 @@ Funcions utilitzades per múltiples mòduls sense dependències de Qt.
 
 import re
 
-_WINDOWS_SPECIAL_FILES = frozenset(
+_WINDOWS_SPECIAL_FILES = WINDOWS_RESERVED_NAMES = frozenset(
     {
         "nul",
         "con",

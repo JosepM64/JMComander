@@ -16,31 +16,10 @@ ERROR_LOCK_VIOLATION = 33
 OPTIMAL_BUFFER_SIZE = 4 * 1024 * 1024  # 4MB — millor rendiment a USB lent
 PARALLEL_COPY_WORKERS = 2  # Fitxers per directori copiats en paral·lel
 
-RESERVED_NAMES = {
-    ".git",
-    "nul",
-    "con",
-    "prn",
-    "aux",
-    "com1",
-    "com2",
-    "com3",
-    "com4",
-    "com5",
-    "com6",
-    "com7",
-    "com8",
-    "com9",
-    "lpt1",
-    "lpt2",
-    "lpt3",
-    "lpt4",
-    "lpt5",
-    "lpt6",
-    "lpt7",
-    "lpt8",
-    "lpt9",
-}
+# Noms reservats Windows (+ .git que copytree ha de saltar) — font única a utils
+from src.core.utils import WINDOWS_RESERVED_NAMES as _WIN_RESERVED  # noqa: E402
+
+RESERVED_NAMES = set(_WIN_RESERVED) | {".git"}
 
 
 def is_file_locked(path):

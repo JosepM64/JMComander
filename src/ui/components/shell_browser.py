@@ -30,16 +30,16 @@ _SHELL_STYLE = """
 """
 
 
+from src.core.utils import format_size as _core_format_size
+
+
 def _format_size(size):
+    # Casos especials de la vista MTP: carpetes (0) en blanc, bytes sencers
     if size <= 0:
         return ""
-    units = ["B", "KB", "MB", "GB", "TB"]
-    value = float(size)
-    for unit in units:
-        if value < 1024 or unit == units[-1]:
-            return f"{value:.1f} {unit}" if unit != "B" else f"{int(value)} B"
-        value /= 1024
-    return ""
+    if size < 1024:
+        return f"{int(size)} B"
+    return _core_format_size(size)
 
 
 class _SizeSortDelegate(QStyledItemDelegate):

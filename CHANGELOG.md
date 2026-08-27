@@ -1,5 +1,16 @@
 # Changelog JMComander
 
+## Versió 6.9.13 - Agost 2026
+
+### Fase 4 — SoC, consolidació d'utilitats i neteja de codi mort
+- **`format_size` consolidat**: era duplicada en 6 llocs (core/utils, sync, panel, shell_browser, progress_dialog, conflict_dialog). Ara és una sola funció a `core/utils.py`; shell_browser i sync hi deleguen.
+- **Noms reservats Windows unificats**: `RESERVED_NAMES` (fs_utils) i `_WINDOWS_SPECIAL_FILES` (utils) eren gairebé idèntics — ara `RESERVED_NAMES = set(WINDOWS_RESERVED_NAMES) | {".git"}`.
+- **Codi mort esborrat**: `progress_dialog.py` sencer (291 línies, cap importador), `_refresh_views`, `change_directory_dialog`, `_on_shell_item_clicked` (slot buit) i el botó `exit_btn` (mai mostrat).
+- **Acció "Acerca de" reparada**: estava registrada sense handler (el menú Ajuda→About no feia res). Ara `_show_about` crida `show_about_dialog`.
+- **Rendiment filtre de fitxers**: `filterAcceptsRow` retorna directament pel cas comú (fill directe del root sense filtre) — abans recorria la cadena de pares 2 cops per fila; eliminat el spam de `logger.debug` per cada fitxer de C:\ a l'arrencada.
+- **Duplicar (F9) en background**: nou `DuplicateJob(QRunnable)` — abans `shutil.copytree` síncron congelava la UI amb carpetes grans.
+- **toolbar_manager**: arreglada la reconstrucció del botó de Plugins (referia un mètode inexistent).
+
 ## Versió 6.9.12 - Agost 2026
 
 ### Fase 3 — Rendiment còpies i MTP/iPhone

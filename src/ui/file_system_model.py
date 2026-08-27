@@ -294,33 +294,11 @@ class FileSystemProxyModel(QSortFilterProxyModel):
             return True
 
         current = index
-        source_model = self.sourceModel()
         while current.isValid():
             current = current.parent()
             if current == ancestor:
-                if source_model and hasattr(source_model, "filePath"):
-                    index_path = source_model.filePath(index) if index.isValid() else "invalid"
-                    ancestor_path = (
-                        source_model.filePath(ancestor) if ancestor.isValid() else "invalid"
-                    )
-                    current_path = (
-                        source_model.filePath(current) if current.isValid() else "invalid"
-                    )
-                    logger.debug(
-                        f"_is_descendant_of: FOUND descendant:"
-                        f" index='{index_path}',"
-                        f" ancestor='{ancestor_path}',"
-                        f" current parent='{current_path}'"
-                    )
                 return True
 
-        if source_model and hasattr(source_model, "filePath"):
-            index_path = source_model.filePath(index) if index.isValid() else "invalid"
-            ancestor_path = source_model.filePath(ancestor) if ancestor.isValid() else "invalid"
-            logger.debug(
-                f"_is_descendant_of: NOT descendant:"
-                f" index='{index_path}', ancestor='{ancestor_path}'"
-            )
         return False
 
     def filterAcceptsRow(self, source_row, source_parent):  # noqa: N802, PLR0912
@@ -330,6 +308,22 @@ class FileSystemProxyModel(QSortFilterProxyModel):
 
         child_idx = source_model.index(source_row, 0, source_parent)
         child_name = source_model.data(child_idx)
+
+        has_filter = (
+            self.filterRegularExpression().isValid() and self.filterRegularExpression().pattern()
+        )
+
+        # Fast path (el cas comú): fill directe del root i cap filtre actiu ->
+        # visible sense recórrer la cadena de pares ni comparar paths
+        if (
+            not has_filter
+            and not self.folders_only
+            and self._extension_filter is None
+            and self.current_root_source_index
+            and self.current_root_source_index.isValid()
+            and source_parent == self.current_root_source_index
+        ):
+            return True
 
         if (
             self.current_root_source_index
@@ -343,10 +337,6 @@ class FileSystemProxyModel(QSortFilterProxyModel):
                 root_path = source_model.filePath(self.current_root_source_index)
                 if child_path == root_path:
                     return True
-
-        has_filter = (
-            self.filterRegularExpression().isValid() and self.filterRegularExpression().pattern()
-        )
 
         if not self.current_root_source_index or not self.current_root_source_index.isValid():
             if has_filter:
@@ -375,9 +365,10 @@ class FileSystemProxyModel(QSortFilterProxyModel):
             if is_child_of_current:
                 filter_result = super().filterAcceptsRow(source_row, source_parent)
                 logger.debug(
-                    f"filterAcceptsRow [CHILD FILTER]:"
-                    f" row={source_row}, filename='{child_name}',"
-                    f" match={filter_result}"
+                    "filterAcceptsRow [CHILD FILTER]: row=%s, filename='%s', match=%s",
+                    source_row,
+                    child_name,
+                    filter_result,
                 )
                 return filter_result
             if is_current_root:

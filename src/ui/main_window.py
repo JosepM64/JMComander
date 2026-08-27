@@ -11,7 +11,6 @@ from PySide6.QtWidgets import (
     QApplication,
     QFrame,
     QHBoxLayout,
-    QInputDialog,
     QLabel,
     QMainWindow,
     QMenu,
@@ -1066,17 +1065,6 @@ class MainWindow(QMainWindow):
             btn.clicked.connect(s)
             l.addWidget(btn)
         layout.addWidget(f)
-
-    def change_directory_dialog(self):
-        p, ok = QInputDialog.getText(
-            self, "Cambiar Directorio", "Ruta:", text=self.active_panel.current_path
-        )
-        if ok and p:
-            p = os.path.expanduser(os.path.expandvars(p.strip()))
-            if os.path.isdir(p):
-                self.active_panel.set_path(p)
-            else:
-                QMessageBox.warning(self, "Error", f"No existe: {p}")
 
     def _setup_window_icon(self):
         b = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).parent.parent  # noqa: SLF001
