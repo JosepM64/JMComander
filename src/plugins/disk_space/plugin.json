@@ -1,7 +1,7 @@
 {
     "id": "disk_space",
     "name": "Espacio en Disco",
-    "version": "1.2.0",
+    "version": "1.3.2",
     "author": "Josep Maria Tapia",
     "description": "Muestra información sobre el espacio total, usado y libre de la unidad actual con drill-down recursivo. Busca carpetas vacías o con nombres duplicados.",
     "entry": "main.py",

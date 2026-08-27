@@ -2,7 +2,7 @@
 
 ## Descripció
 Administrador de fitxers de doble panel. Python 3.13 + PySide6.
-- **Versió**: 6.9.14 | **Data**: 2026-08-27
+- **Versió**: 6.9.17 | **Data**: 2026-08-27
 
 ## Estructura
 ```
@@ -10,7 +10,7 @@ JMComander/
 ├── main.py                    # Entry point
 ├── build.bat                  # Build ràpid
 ├── src/
-│   ├── version.py             # Versió: 6.9.14
+│   ├── version.py             # Versió: 6.9.17
 │   ├── core/                  # Lògica
 │   │   ├── jobs.py, fs_utils.py, config.py, actions.py
 │   │   ├── directory_watcher.py   # [NEW v6.8.0] Watcher + polling extret de panel.py
@@ -46,6 +46,11 @@ send2trash, rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musi
 ```
 
 ## Últimes versions
+- **v6.9.17** (2026-08-27): Millores d'estabilitat al drill-down de disk_space
+  - Es cancel·la l'escanys previ avant d'iniciar un nou escaneig per a evitar condicions de carrera que podien producir el tancament improvès del programa al navegar rapidament per carpetes.
+- **v6.9.16** (2026-08-27): Millora de contrast a la selecció del drill-down de disk_space
+  - Fons de selecció més fosc per a millor visibilitat de l'ítem escogit a l'arbre
+- **v6.9.15** (2026-08-27): Esborrat de carpetes des del drill-down de disk_space
 - **v6.9.12** (2026-08-25): Fase 3 rendiment còpies+MTP
   - MoveJob mateix volum → os.replace instantani; mida calculada 1 cop
   - MtpCopyJob(QRunnable): còpia iPhone en background amb progrés i cancel·lació (CoInitialize propi al worker)

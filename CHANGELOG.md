@@ -1,5 +1,18 @@
 # Changelog JMComander
 
+## Versió 6.9.17 - Agost 2026
+
+### Millores d'Estabilitat
+- **`disk_space` drill-down**: es cancel·la l'escanys previ avant d'iniciar un nou escaneig per a evitar condicions de carreira que podien produir el tancament improvès del programa al navegar rapidament per carpetes.
+
+## Versió 6.9.16 - Agost 2026
+
+### Nova funcionalitat
+- **`disk_space` esborrat de carpetes des del drill-down**: el panell de vista d'arbre (Carpeta/Mida/%) ara permet esborrar les carpetes seleccionades. Dos modes:
+  - **Eliminar (Paperera)**: mou a la paperera via `core.fs_utils.safe_delete(use_trash=True)` amb una sola confirmació.
+  - **Eliminar Permanent**: esborra amb `shutil.rmtree` amb **doble confirmació** (avís + confirmació final).
+  - El borrat s'executa en segon pla (`DeleteFoldersWorker`) per no congelar la UI amb carpetes grans, i en acabar es re-escaneja el directori actual per refrescar l'arbre. Els errors es reporten en un sol diàleg.
+
 ## Versió 6.9.14 - Agost 2026
 
 ### Correccions

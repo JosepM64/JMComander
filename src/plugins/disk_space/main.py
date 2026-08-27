@@ -1,7 +1,6 @@
 import os
 import shutil
 import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -20,6 +19,8 @@ from PySide6.QtWidgets import (
     QTreeWidgetItem,
     QVBoxLayout,
 )
+
+from src.core.fs_utils import safe_delete
 
 
 class EmptyFoldersWorker(QThread):
@@ -129,6 +130,38 @@ class FolderSizeWorker(QThread):
         except (OSError, PermissionError):
             pass
         return total
+
+
+class DeleteFoldersWorker(QThread):
+    """Esborra carpetes en segon pla (paperera o permanent) sense bloquejar la UI."""
+    finished = Signal(int, list)  # deleted_count, errors
+    error = Signal(str)
+
+    def __init__(self, paths: list, use_trash: bool):
+        super().__init__()
+        self.paths = paths
+        self.use_trash = use_trash
+        self.is_cancelled = False
+
+    def cancel(self):
+        self.is_cancelled = True
+
+    def run(self):
+        if self.is_cancelled:
+            self.finished.emit(0, [])
+            return
+            
+        deleted = 0
+        errors = []
+        for path in self.paths:
+            if self.is_cancelled:
+                break
+            try:
+                safe_delete(path, use_trash=self.use_trash)
+                deleted += 1
+            except Exception as e:  # noqa: BLE001
+                errors.append(f"{path}: {e!s}")
+        self.finished.emit(deleted, errors)
 
 
 class DuplicateFoldersWorker(QThread):
@@ -342,6 +375,13 @@ class DiskSpaceDialog(QDialog):
         self.tree.setSortingEnabled(True)
         self.tree.itemDoubleClicked.connect(self.on_folder_double_clicked)
         self.tree.itemSelectionChanged.connect(self.on_selection_changed)
+        # Mejorar contraste de selección (más visible)
+        self.tree.setStyleSheet("""
+        QTreeWidget::item:selected {
+            background-color: #005a9e;
+            color: white;
+        }
+        """)
         layout.addWidget(self.tree)
 
         # Progress
@@ -362,16 +402,34 @@ class DiskSpaceDialog(QDialog):
         self.btn_open = QPushButton("Obrir al Explorador")
         self.btn_open.clicked.connect(self.open_selected)
         self.btn_open.setEnabled(False)
+        self.btn_delete_trash = QPushButton("Eliminar (Paperera)")
+        self.btn_delete_trash.clicked.connect(lambda: self.delete_selected(use_trash=True))
+        self.btn_delete_trash.setEnabled(False)
+        self.btn_delete_trash.setToolTip("Mou les carpetes seleccionades a la paperera.")
+        self.btn_delete_permanent = QPushButton("Eliminar Permanent")
+        self.btn_delete_permanent.clicked.connect(lambda: self.delete_selected(use_trash=False))
+        self.btn_delete_permanent.setEnabled(False)
+        self.btn_delete_permanent.setToolTip(
+            "Esborra definitivament les carpetes seleccionades (sense paperera). Dooble confirmació."
+        )
         btn_layout.addWidget(self.btn_scan)
         btn_layout.addWidget(self.btn_cancel)
         btn_layout.addStretch()
         btn_layout.addWidget(self.btn_open)
+        btn_layout.addWidget(self.btn_delete_trash)
+        btn_layout.addWidget(self.btn_delete_permanent)
         layout.addLayout(btn_layout)
+
+        self.delete_worker: DeleteFoldersWorker | None = None
 
         # Auto-start scan
         self.start_scan()
 
     def start_scan(self):
+        # Cancel any ongoing scan
+        if self.worker and self.worker.isRunning():
+            self.worker.cancel()
+
         self.btn_scan.setEnabled(False)
         self.btn_cancel.setEnabled(True)
         self.btn_open.setEnabled(False)
@@ -379,10 +437,12 @@ class DiskSpaceDialog(QDialog):
         self.progress.setRange(0, 0)
         self.lbl_status.setText(f"Escanejant {self.current_path}...")
 
-        self.worker = FolderSizeWorker(self.current_path)
+        # Create worker and assign to self.worker
+        worker = FolderSizeWorker(self.current_path)
+        self.worker = worker
         self.worker.folder_found.connect(self.on_folder_found)
-        self.worker.finished.connect(self.on_scan_finished)
-        self.worker.error.connect(self.on_scan_error)
+        self.worker.finished.connect(lambda results: self.on_scan_finished(worker, results))
+        self.worker.error.connect(lambda msg: self.on_scan_error(msg, worker))
         self.worker.progress.connect(lambda t, v: self.lbl_status.setText(t))
         self.worker.start()
 
@@ -406,8 +466,12 @@ class DiskSpaceDialog(QDialog):
         item.setData(1, Qt.ItemDataRole.UserRole, fs.size)
         self.tree.addTopLevelItem(item)
 
-    def on_scan_finished(self, results: list):
+    def on_scan_finished(self, worker, results: list):
         """Calcular percentatges i habilitar UI."""
+        # Only proceed if this worker is still the current one
+        if self.worker is not worker:
+            return
+
         total_size = sum(fs.size for fs in results)
         if total_size > 0:
             for i in range(self.tree.topLevelItemCount()):
@@ -422,13 +486,17 @@ class DiskSpaceDialog(QDialog):
         self.btn_open.setEnabled(True)
         self.progress.setRange(0, 100)
         self.progress.setValue(100)
+        self.worker = None
 
-    def on_scan_error(self, msg: str):
+    def on_scan_error(self, worker, msg: str):
         self.lbl_status.setText(f"Error: {msg}")
         self.btn_scan.setEnabled(True)
         self.btn_cancel.setEnabled(False)
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
+        # Only clear worker if it's the same one
+        if self.worker is worker:
+            self.worker = None
 
     def on_folder_double_clicked(self, item: QTreeWidgetItem, _column: int):
         path = item.data(0, Qt.ItemDataRole.UserRole)
@@ -451,7 +519,10 @@ class DiskSpaceDialog(QDialog):
 
     def on_selection_changed(self):
         selected = self.tree.selectedItems()
-        self.btn_open.setEnabled(bool(selected))
+        has_selection = bool(selected)
+        self.btn_open.setEnabled(has_selection)
+        self.btn_delete_trash.setEnabled(has_selection)
+        self.btn_delete_permanent.setEnabled(has_selection)
 
     def open_selected(self):
         selected = self.tree.selectedItems()
@@ -459,6 +530,86 @@ class DiskSpaceDialog(QDialog):
             path = selected[0].data(0, Qt.ItemDataRole.UserRole)
             if path and os.path.exists(path):
                 subprocess.Popen(f'explorer "{path}"', shell=True)
+
+    def delete_selected(self, use_trash: bool):
+        """Esborra les carpetes seleccionades (paperera o permanent)."""
+        selected = self.tree.selectedItems()
+        paths = [
+            item.data(0, Qt.ItemDataRole.UserRole)
+            for item in selected
+            if item.data(0, Qt.ItemDataRole.UserRole) and os.path.exists(item.data(0, Qt.ItemDataRole.UserRole))
+        ]
+        if not paths:
+            return
+
+        if use_trash:
+            confirm_btn = QMessageBox.question(
+                self,
+                "Eliminar a la Paperera",
+                f"¿Moure {len(paths)} carpeta(es) a la paperera?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if confirm_btn != QMessageBox.StandardButton.Yes:
+                return
+            self._run_delete(paths, use_trash=True)
+            return
+
+        # Permanent: doble confirmació
+        first = QMessageBox.warning(
+            self,
+            "Eliminar Permanentment",
+            f"AVÍS: Esborraràs {len(paths)} carpeta(es) DEFINITIVAMENT (sense paperera).\n\n"
+            "Aquesta acció no es pot desfer. ¿Continuar?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if first != QMessageBox.StandardButton.Yes:
+            return
+        second = QMessageBox.warning(
+            self,
+            "Confirmar Eliminació Permanent",
+            "¿Segur que vols esborrar-ho PERMANENTMENT? Aquesta és la darrera oportunitat.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if second != QMessageBox.StandardButton.Yes:
+            return
+        self._run_delete(paths, use_trash=False)
+
+    def _run_delete(self, paths: list, use_trash: bool):
+        """Llança el borrat en segon pla i desactiva la UI fins a acabar."""
+        self.delete_worker = DeleteFoldersWorker(paths, use_trash)
+        self.delete_worker.finished.connect(self.on_delete_finished)
+        self.delete_worker.error.connect(lambda msg: self.lbl_status.setText(f"Error: {msg}"))
+        self._set_delete_buttons_enabled(False)
+        self.lbl_status.setText("Esborrant carpetes...")
+        self.progress.setRange(0, 0)
+        self.delete_worker.start()
+
+    def on_delete_finished(self, deleted: int, errors: list):
+        self.delete_worker = None
+        self.progress.setRange(0, 100)
+        self.progress.setValue(100)
+        if errors:
+            QMessageBox.warning(
+                self,
+                "Error en esborrar",
+                f"S'han esborrat {deleted} carpeta(es).\n\nNo s'han pogut esborrar:\n"
+                + "\n".join(errors[:20]),
+            )
+        self.lbl_status.setText(f"Esborrat completat: {deleted} carpeta(es).")
+        self._set_delete_buttons_enabled(True)
+        # Actualitzar el tree (re-escanejar el directori actual)
+        self.start_scan()
+
+    def _set_delete_buttons_enabled(self, enabled: bool):
+        self.btn_delete_trash.setEnabled(enabled)
+        self.btn_delete_permanent.setEnabled(enabled)
+        self.btn_scan.setEnabled(enabled)
+        self.btn_cancel.setEnabled(not enabled)
+        self.btn_open.setEnabled(enabled)
+        self.btn_back.setEnabled(enabled)
 
 
 def register(api):
