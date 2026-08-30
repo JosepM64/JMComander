@@ -929,6 +929,11 @@ class MainWindow(QMainWindow):
     def _on_dialog_error(self, error_msg):
         logger.error("[MainWindow] Operation error: %s", error_msg)
         self._on_dialog_finished()
+        # v6.9.20: mostrar error visible (abans només log, l'usuari veia "no apareix barra" sense saber que F:\ està protegit)
+        try:
+            QMessageBox.critical(self, "Error de copia", error_msg)
+        except Exception:
+            pass
 
     def _cancel_operation(self, job):
         job.cancel()

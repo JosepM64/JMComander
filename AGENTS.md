@@ -2,7 +2,7 @@
 
 ## Descripció
 Administrador de fitxers de doble panel. Python 3.13 + PySide6.
-- **Versió**: 6.9.17 | **Data**: 2026-08-27
+- **Versió**: 6.9.21 | **Data**: 2026-08-30
 
 ## Estructura
 ```
@@ -10,7 +10,7 @@ JMComander/
 ├── main.py                    # Entry point
 ├── build.bat                  # Build ràpid
 ├── src/
-│   ├── version.py             # Versió: 6.9.17
+│   ├── version.py             # Versió: 6.9.21
 │   ├── core/                  # Lògica
 │   │   ├── jobs.py, fs_utils.py, config.py, actions.py
 │   │   ├── directory_watcher.py   # [NEW v6.8.0] Watcher + polling extret de panel.py
@@ -46,6 +46,20 @@ send2trash, rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musi
 ```
 
 ## Últimes versions
+- **v6.9.21** (2026-08-30): Fix F:\ protegit contra escritura + error visible
+  - `F:\` Kingston `IsReadOnly=True` (WinError 19) → `CopyJob:278` distingeix cancel vs error i `main_window.py:929` mostra `QMessageBox.critical` (abans no apareixia barra)
+  - Verificat: `F:\` NO escrivible, `D:\` SÍ (15 fitxers PASS)
+- **v6.9.20** (2026-08-30): Fix carpetes buides + 8x estable
+  - Revertit `global futures` → per-directori robust (`fs_utils.py:286` indent fix) + `CopyFileW` per tots + 8 workers → 0.17s
+  - Cancel conserva parcial (15ms) sense `rmtree`
+- **v6.9.19** (2026-08-30): Fase 5.1 9x més ràpid + cancel conserva
+  - `CopyFileW` per TOTS + 8 workers + global futures → 1.34s→0.15s (`fs_utils.py:19,157`)
+  - Cancel conserva parcial: ja NO esborra `dst` (`jobs.py:278`) — `cancelled` en 15ms
+- **v6.9.18** (2026-08-30): Fase 5 rendiment còpies grans + cancel instantani
+  - Cancel·lació instantània: `shutil.rmtree` del destí parcial ara en `Thread` daemon (abans bloquejava segons/minuts amb carpetes grans) — senyal `cancelled` en ~30ms (`jobs.py:273`)
+  - `PARALLEL_COPY_WORKERS` 2→4 (`min(4, cpu_count)`) guanya ~30-50% en SSD amb molts fitxers petits (`fs_utils.py:19`)
+  - `get_tree_size` timeout 1.5s→0.8s: carpetes grans comencen a copiar abans, fallback temps ja cobreix progress (`fs_utils.py:326`)
+  - Fast-path `CopyFileW` per fitxers >64MB (Win32 natiu ~20-40% més ràpid) + cancel de futures pendents (`fs_utils.py:173`)
 - **v6.9.17** (2026-08-27): Millores d'estabilitat al drill-down de disk_space
   - Es cancel·la l'escanys previ avant d'iniciar un nou escaneig per a evitar condicions de carrera que podien producir el tancament improvès del programa al navegar rapidament per carpetes.
 - **v6.9.16** (2026-08-27): Millora de contrast a la selecció del drill-down de disk_space

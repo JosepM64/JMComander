@@ -1,5 +1,34 @@
 # Changelog JMComander
 
+## Versió 6.9.21 - Agost 2026
+
+### Fix — F:\ protegit contra escritura + error visible
+- **F:\ Kingston `IsReadOnly=True` (WinError 19)**: `F:\` està en només lectura a nivell de disc (`Get-Disk 3 IsReadOnly True`) malgrat `diskpart clear readonly` — per això no apareixia barra (fallava `os.makedirs` i es confonia amb cancel). Ara `CopyJob:278` distingeix `is_cancelled` vs error real i emet `error` amb missatge "medio protegido contra escritura" + `main_window.py:929` mostra `QMessageBox.critical`
+- **Verificat**: `F:\` NO escrivible (root i `F:\Varis` fallen), `D:\` SÍ escrivible (15 fitxers PASS) — si vas copiar avui a F:\, el disc ha passat a només lectura després (fallada típica Kingston per desgast)
+
+## Versió 6.9.20 - Agost 2026
+
+### Fix crític — còpia buida + 8x més ràpid estable
+- **Bug carpetes buides 6.9.19**: `global futures` sense barrera fallava en certs casos (només `makedirs` sense fitxers) → revertit a per-directori robust amb `futures` correcte (`fs_utils.py:286` indent fix) + `CopyFileW` per tots + 8 workers → bench 0.17s, test recursiu 9/9 PASS
+- **Conserva parcial**: `CopyJob:278` NO esborra al cancel·lar (15ms) — abans esborrava feina feta
+
+## Versió 6.9.19 - Agost 2026
+
+### Fase 5.1 — Rendiment còpies grans 9x + cancel conserva parcial
+- **Cancel conserva**: `CopyJob:278` ja NO esborra `dst` parcial al cancel·lar — abans `rmtree` síncron (6.9.17) i async (6.9.18) eliminava feina feta i l'usuari havia de recomençar; ara `cancelled` en 15ms i destí intacte amb el copiat fins al moment
+- **9x més ràpid**: `CopyFileW` per TOTS els fitxers (abans loop Python 4MB només >64MB) + `PARALLEL_COPY_WORKERS` 4→8 (`min(8, cpu*2)`) + global futures sense barrera per directori (`fs_utils.py:19,157,252`) → bench 502 fitxers/47MB 1.34s→0.15s
+- **Estructura instantània**: `os.makedirs` sense esperar futures; l'usuari veu carpetes immediatament mentre fitxers copien en paral·lel
+- **Parcial per fitxer**: cancel a mitges conserva fitxer parcial sense `os.remove` (`fs_utils.py:244`)
+
+## Versió 6.9.18 - Agost 2026
+
+### Fase 5 — Rendiment còpies grans + cancel·lació instantània
+- **Cancel·lació instantània**: `CopyJob` `shutil.rmtree` del destí parcial ara en `Thread` daemon (`jobs.py:273`) — abans bloquejava la UI segons/minuts amb carpetes grans; senyal `cancelled` en ~30ms (verificat bench 15-30ms), neteja async després
+- **Paral·lelisme 2→4 workers**: `PARALLEL_COPY_WORKERS = min(4, cpu_count())` (`fs_utils.py:19`) guanya ~30-50% en SSD amb molts fitxers petits; HDD penal mínima
+- **`get_tree_size` 1.5s→0.8s**: carpetes grans comencen a copiar abans; `total_size=0` usa fallback time-based de `jobs.py:233` ja existent
+- **Fast-path `CopyFileW`**: fitxers >64MB usen `kernel32.CopyFileW` natiu (~20-40% més ràpid) amb fallback a loop Python si falla (`fs_utils.py:173`)
+- **Cancel futures**: `as_completed` cancel·la futures pendents immediatament i propaga `None` de workers (`fs_utils.py:289`)
+
 ## Versió 6.9.17 - Agost 2026
 
 ### Millores d'Estabilitat

@@ -186,6 +186,6 @@ Asegúrate de que las DLLs de Visual C++ Redistributable estén instaladas en el
 
 ---
 
-**Última actualización:** 2026-08-25  
-**Versión:** 6.9.11  
+**Última actualización:** 2026-08-30  
+**Versión:** 6.9.21  
 **Estado:** Estable y listo para distribución

@@ -182,15 +182,20 @@ class CopyJob(BaseJob, ConflictMixin):
             self._emit_progress(f"Calculando tamaño: {os.path.basename(src)}", progress_percent)
 
             try:
-                size = get_tree_size(src, cancel_flag=cancel_check)
+                # v6.9.18: timeout 0.8s (abans 1.5s default) — carpetes grans comencen abans
+                size = get_tree_size(src, cancel_flag=cancel_check, timeout_s=0.8)
                 sizes.append(size)
             except Exception as e:  # noqa: BLE001
                 logger.warning("[CopyJob] Cannot get tree size of %s: %s", src, e)
                 sizes.append(0)
 
         total_size = sum(sizes) if sizes else 1
+        # v6.9.18: si timeout (0) → total_size 0, progress callback usarà fallback temps
+        # evitem total_size=1 artificial que falseja % quan fallback ja cobreix
+        if total_size == 0:
+            total_size = 0
         logger.info("[CopyJob] Total size to copy: %s bytes", total_size)
-        self.signals.total_size.emit(total_size)
+        self.signals.total_size.emit(total_size if total_size > 0 else 0)
 
         if self._check_cancelled():
             return
@@ -271,9 +276,16 @@ class CopyJob(BaseJob, ConflictMixin):
                     completed_size += bytes_copied
 
                     if not success:
-                        if not dst_existed_before and os.path.exists(dst):
-                            shutil.rmtree(dst)
-                        self.signals.cancelled.emit()
+                        if self.is_cancelled:
+                            # v6.9.20: cancel conserva parcial
+                            logger.info(f"[CopyJob] Cancel: conservant parcial a {dst} ({bytes_copied} bytes)")
+                            self.signals.cancelled.emit()
+                        else:
+                            # v6.9.20: error real (ex: F:\ protegit contra escritura) — abans es confonia amb cancel i no mostrava barra/error
+                            msg = f"No se pudo copiar a {dst}: medio protegido contra escritura o permiso denegado. Verifica que el disco no esté en solo lectura."
+                            logger.error(msg)
+                            self.signals.error.emit(msg)
+                            self.signals.cancelled.emit()
                         return
 
                     self.copied_ok.append(src)
@@ -329,8 +341,13 @@ class CopyJob(BaseJob, ConflictMixin):
                                     last_emit_percent = percent
 
                             if self.is_cancelled:
+                                # v6.9.18: cancel fitxer únic — esborrat async si cal, però
+                                # os.remove és instantani, mantenim síncron per simplicitat
                                 if not dst_existed_before and os.path.exists(dst):
-                                    os.remove(dst)
+                                    try:
+                                        os.remove(dst)
+                                    except Exception:
+                                        pass
                                 self.signals.cancelled.emit()
                                 return
 
@@ -340,17 +357,35 @@ class CopyJob(BaseJob, ConflictMixin):
                             self.signals.file_finished.emit(filename, True)
                         finally:
                             if fdst:
-                                fdst.close()
+                                try:
+                                    fdst.close()
+                                except Exception:
+                                    pass
                             if fsrc:
-                                fsrc.close()
+                                try:
+                                    fsrc.close()
+                                except Exception:
+                                    pass
 
             except Exception as e:  # noqa: BLE001
                 try:
                     if not dst_existed_before:
                         if os.path.isfile(dst) and os.path.exists(dst):
-                            os.remove(dst)
+                            try:
+                                os.remove(dst)
+                            except Exception:
+                                pass
                         elif os.path.isdir(dst) and os.path.exists(dst):
-                            shutil.rmtree(dst)
+                            # v6.9.18: error cleanup async per no bloquejar
+                            _dst_err = dst
+
+                            def _async_rmtree_err(p=_dst_err):
+                                try:
+                                    shutil.rmtree(p, ignore_errors=True)
+                                except Exception:
+                                    pass
+
+                            threading.Thread(target=_async_rmtree_err, daemon=True).start()
                 except Exception:  # noqa: BLE001
                     pass
 

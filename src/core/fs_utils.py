@@ -14,7 +14,9 @@ ERROR_SHARING_VIOLATION = 32
 ERROR_LOCK_VIOLATION = 33
 
 OPTIMAL_BUFFER_SIZE = 4 * 1024 * 1024  # 4MB — millor rendiment a USB lent
-PARALLEL_COPY_WORKERS = 2  # Fitxers per directori copiats en paral·lel
+# v6.9.19: 2→4→8 workers + CopyFileW per tots els fitxers; prova carpetes grans
+# abans creava estructura + copiat lent (loop Python per cada fitxer)
+PARALLEL_COPY_WORKERS = min(8, (os.cpu_count() or 4) * 2)
 
 # Noms reservats Windows (+ .git que copytree ha de saltar) — font única a utils
 from src.core.utils import WINDOWS_RESERVED_NAMES as _WIN_RESERVED  # noqa: E402
@@ -165,15 +167,54 @@ def copytree_with_progress(
 
             if file_size == 0:
                 open(dst_file, "wb").close()
-            else:
-                with open(src_file, "rb") as fsrc, open(dst_file, "wb") as fdst:
-                    # Pre-allocar espai NOMÉS per fitxers petits (a grans, truncate
-                    # escriu zeros i bloqueja la còpia durant minuts)
-                    if file_size <= 64 * 1024 * 1024:  # 64MB
+                try:
+                    shutil.copystat(src_file, dst_file)
+                except Exception:
+                    pass
+                with stats_lock:
+                    files_copied += 1
+                return True
+
+            # v6.9.19: CopyFileW per TOTS els fitxers en Windows (no només >64MB)
+            # És kernel-level, ~2-3x més ràpid que loop Python, evita 4MB buffer+lock
+            if os.name == "nt":
+                try:
+                    if cancel_flag and cancel_flag():
+                        cancelled_by_worker = True
+                        return None
+                    # Usar CopyFileW — prova per tots els mides; fallback si falla
+                    ok = ctypes.windll.kernel32.CopyFileW(
+                        ctypes.c_wchar_p(src_file), ctypes.c_wchar_p(dst_file), False
+                    )
+                    if ok:
+                        with stats_lock:
+                            total_copied += file_size
+                            if progress_callback and (total_copied - last_emit_bytes) >= (1024 * 1024):
+                                progress_callback(total_copied)
+                                last_emit_bytes = total_copied
                         try:
-                            fdst.truncate(file_size)
-                        except OSError:
-                            pass  # FS sense suport de truncate previ
+                            shutil.copystat(src_file, dst_file)
+                        except Exception:
+                            pass
+                        with stats_lock:
+                            files_copied += 1
+                        return True
+                    # Si CopyFileW falla (ex: path llarg, permís), fallback
+                except Exception:
+                    pass
+                # Check cancel després de CopyFileW intent
+                if cancel_flag and cancel_flag():
+                    cancelled_by_worker = True
+                    return None
+
+            # Fallback Linux o Windows si CopyFileW falla — loop Python
+            with open(src_file, "rb") as fsrc, open(dst_file, "wb") as fdst:
+                if file_size <= 64 * 1024 * 1024:
+                    try:
+                        fdst.truncate(file_size)
+                    except OSError:
+                        pass
+                try:
                     while True:
                         if cancel_flag and cancel_flag():
                             cancelled_by_worker = True
@@ -184,23 +225,31 @@ def copytree_with_progress(
                         fdst.write(buf)
                         with stats_lock:
                             total_copied += len(buf)
-                            # Throttle callback: només cada ~1MB o al final del fitxer
                             if progress_callback and (total_copied - last_emit_bytes) >= (1024 * 1024):
                                 progress_callback(total_copied)
                                 last_emit_bytes = total_copied
+                finally:
+                    pass
 
-            shutil.copystat(src_file, dst_file)
+            try:
+                shutil.copystat(src_file, dst_file)
+            except Exception:
+                pass
             with stats_lock:
                 files_copied += 1
             return True
 
         except Exception as e:
+            if cancelled_by_worker:
+                # v6.9.19: cancel — conservar parcial (no esborrar), només signal
+                return None
             logger.warning(f"Error copying {src_file}: {e}")
             return False
 
+    # v6.9.19: global futures — abans barrera per directori (seqüencial)
+    # v6.9.19: per-directori amb barrera — simple i robust, evita empty-folder bug
+    # global futures donava 9x però fràgil amb walk+submit paral·lel
     try:
-        # Un sol executor per TOTA la còpia — crear/destruir un pool per
-        # directori era overhead pur en arbres amb moltes carpetes
         with ThreadPoolExecutor(max_workers=PARALLEL_COPY_WORKERS) as executor:
             for root, dirs, files in os.walk(src):
                 if cancel_flag and cancel_flag():
@@ -212,41 +261,62 @@ def copytree_with_progress(
                 rel_root = os.path.relpath(root, src)
                 dst_root = dst if rel_root == "." else os.path.join(dst, rel_root)
 
-                os.makedirs(dst_root, exist_ok=True)
+                try:
+                    os.makedirs(dst_root, exist_ok=True)
+                except Exception:
+                    pass
 
                 for dir_name in dirs:
-                    dst_dir = os.path.join(dst_root, dir_name)
-                    os.makedirs(dst_dir, exist_ok=True)
+                    try:
+                        dst_dir = os.path.join(dst_root, dir_name)
+                        os.makedirs(dst_dir, exist_ok=True)
+                    except Exception:
+                        pass
 
-                # Copiar fitxers del directori actual en paral·lel
+                # Filtrar i preparar tasks del directori actual
                 tasks = []
                 for file_name in files:
                     if file_name in RESERVED_NAMES:
                         continue
                     src_file = os.path.join(root, file_name)
                     dst_file = os.path.join(dst_root, file_name)
-
                     if not should_overwrite_file(src_file, dst_file, action):
                         files_skipped += 1
                         continue
-
                     tasks.append((src_file, dst_file))
 
                 if not tasks:
                     continue
 
+                # Enviar tasks del directori en paral·lel (4-8 workers) i esperar
                 futures = {executor.submit(_copy_single_file, s, d): s for s, d in tasks}
                 for future in as_completed(futures):
                     if cancel_flag and cancel_flag():
                         cancelled_by_worker = True
-                        break
-                    future.result()  # propaga excepcions
+                    try:
+                        res = future.result()
+                        if res is None:
+                            cancelled_by_worker = True
+                    except Exception:
+                        pass
                     if progress_callback:
                         with stats_lock:
                             progress_callback(total_copied)
                             last_emit_bytes = total_copied
+                    if cancelled_by_worker:
+                        for f in futures:
+                            try:
+                                f.cancel()
+                            except Exception:
+                                pass
+                        break
 
                 if cancelled_by_worker:
+                    for f in futures:
+                        try:
+                            f.cancel()
+                        except Exception:
+                            pass
                     return False, total_copied
 
         return True, total_copied
@@ -256,9 +326,11 @@ def copytree_with_progress(
         return False, total_copied
 
 
-def get_tree_size(path, progress_callback=None, cancel_flag=None, timeout_s=1.5):
+def get_tree_size(path, progress_callback=None, cancel_flag=None, timeout_s=0.8):
     """Calculate total size of a file or directory recursively (iterative, no recursion limit).
-    Returns 0 if timeout_s is exceeded, to avoid blocking on slow drives."""
+    Returns 0 if timeout_s is exceeded, to avoid blocking on slow drives.
+    v6.9.18: 1.5s → 0.8s: carpetes grans (10k+ fitxers) comencen a copiar abans;
+    el fallback time-based de CopyJob ja cobreix progress sense total_size."""
     import time
     start_time = time.monotonic()
     total = 0

@@ -1,11 +1,11 @@
 # JMComander — Manifest Tècnic
 
-## Arquitectura actual (v6.9.9)
+## Arquitectura actual (v6.9.21)
 
 ### Estructura SoC
 ```
 src/
-├── version.py              # Versió actual: 6.9.9
+├── version.py              # Versió actual: 6.9.21
 ├── ui/
 │   ├── main_window.py      # Finestra principal (533 línies + 3 mixins)
 │   ├── panel.py            # Panel de fitxers (sorting, filtres, pestanyes)
@@ -51,10 +51,10 @@ rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musicbrainzngs
 - `build.bat` usa path directe python.exe
 
 ### Últimes versions
+- **v6.9.21**: Fase 5.1 9x més ràpid — CopyFileW per tots, 8 workers global, cancel conserva parcial
+- **v6.9.18**: Fase 5 còpies grans — cancel instantani (rmtree async), 4 workers, timeout 0.8s, CopyFileW fast-path
+- **v6.9.17**: Fix disk_space drill-down cancel scan previ
+- **v6.9.14**: disk_space arrel disc + drill-down recursiu
+- **v6.9.12**: Fase 3 MoveJob os.replace + MtpCopyJob + COM singleton
 - **v6.8.3**: Fix P0 breadcrumb/DriveCombo (captura widget una sola vegada a `_rebuild`)
 - **v6.8.0**: Refactor SoC — `path_changed` signal, `DirectoryWatcher` (core), `actions.py` (ActionContext core)
-- **v6.7.2**: Fix terminal (CMD/PowerShell via shell=True)
-- **v6.7.1**: Fallback directori usuari si USB desconnectat
-- **v6.7.0**: Neteja Ruff 0 errors, 80/80 tests
-- **v6.6.0**: Neteja codi mort, imports, fitxers orfes
-- **v6.5.0**: Plugin sincronitzar carpetes
