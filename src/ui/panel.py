@@ -215,12 +215,18 @@ class FilePanel(QWidget):
 
         # Barra de progreso in-line (se muestra solo durante operaciones)
         self.inline_progress = QFrame()
-        self.inline_progress.setFixedHeight(20)
+        self.inline_progress.setFixedHeight(22)
         self.inline_progress.setStyleSheet("background-color: #e8f0fe; border: 1px solid #90caf9; border-radius: 2px;")
         self.inline_progress.hide()
         inline_layout = QHBoxLayout(self.inline_progress)
         inline_layout.setContentsMargins(4, 0, 4, 0)
         inline_layout.setSpacing(4)
+
+        self.inline_progress_label = QLabel("")
+        self.inline_progress_label.setStyleSheet("color: #0d47a1; font-size: 10px;")
+        self.inline_progress_label.setMaximumWidth(220)
+        self.inline_progress_label.setSizePolicy(self.inline_progress_label.sizePolicy().Policy.Fixed, self.inline_progress_label.sizePolicy().Policy.Preferred)
+        inline_layout.addWidget(self.inline_progress_label)
 
         self.inline_progress_bar = QProgressBar()
         self.inline_progress_bar.setRange(0, 100)
@@ -1493,14 +1499,17 @@ class FilePanel(QWidget):
             p = path or self.current_path
             self.tab_bar.add_tab(p)
 
-    def show_inline_progress(self, percent: int):
+    def show_inline_progress(self, percent: int, text: str = ""):
         """Mostrar progress_bar + botó X in-line."""
         self.inline_progress.show()
         pct = max(0, min(100, percent))
         self.inline_progress_bar.setValue(pct)
         self.inline_cancel_btn.setEnabled(True)
+        if text:
+            self.inline_progress_label.setText(text)
 
     def hide_inline_progress(self):
         self.inline_progress.hide()
         self.inline_progress_bar.setValue(0)
         self.inline_cancel_btn.setEnabled(False)
+        self.inline_progress_label.setText("")

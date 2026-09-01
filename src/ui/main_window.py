@@ -580,7 +580,7 @@ class MainWindow(QMainWindow):
 
     def _on_path_request(self, p):
         # Assegurar que el panell actiu té el focus abans de canviar el path
-        if hasattr(self.active_panel, 'setFocus'):
+        if hasattr(self.active_panel, "setFocus"):
             self.active_panel.setFocus()
         logger.debug(f"_on_path_request called with path: {p}")
         self.active_panel.set_path(p)
@@ -912,13 +912,20 @@ class MainWindow(QMainWindow):
         j.signals.progress.connect(self._on_dialog_progress)
         j.signals.finished.connect(self._on_dialog_finished)
         j.signals.error.connect(self._on_dialog_error)
+        if hasattr(j.signals, "file_started"):
+            j.signals.file_started.connect(self._on_inline_file_started)
 
-    def _on_dialog_progress(self, _text, percent):
+    def _on_dialog_progress(self, text, percent):
         if self._taskbar_progress and percent > 0:
             self._taskbar_progress.set_progress(percent, 100)
-        self.active_panel.show_inline_progress(percent)
+        self.active_panel.show_inline_progress(percent, text)
         if self.isMinimized():
             self._flash_if_minimized()
+
+    def _on_inline_file_started(self, filename, current, total):
+        # Actualitza només l'etiqueta amb el fitxer actual, preservant el percentatge
+        if hasattr(self.active_panel, "inline_progress_label"):
+            self.active_panel.inline_progress_label.setText(f"{filename} ({current}/{total})")
 
     def _on_dialog_finished(self):
         if getattr(self, "_taskbar_progress", None):
