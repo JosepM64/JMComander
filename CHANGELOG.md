@@ -1,5 +1,12 @@
 # Changelog JMComander
 
+## Versió 6.9.22 - Agost 2026
+
+### UI — Barra de progrés de còpia/moviment mostra nom del fitxer
+- `src/ui/panel.py`: etiqueta `inline_progress_label` a la barra de progrés in-line; `show_inline_progress` accepta text.
+- `src/ui/main_window.py`: `_on_dialog_progress` passa text del senyal; `_on_inline_file_started` actualitza l'etiqueta quan comença un fitxer nou.
+- L'usuari veu ara "filename (current/total)" mentre es copia/mou, en lloc de només la barra.
+
 ## Versió 6.9.21 - Agost 2026
 
 ### Fix — F:\ protegit contra escritura + error visible

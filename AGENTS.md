@@ -2,7 +2,7 @@
 
 ## Descripció
 Administrador de fitxers de doble panel. Python 3.13 + PySide6.
-- **Versió**: 6.9.21 | **Data**: 2026-08-30
+- **Versió**: 6.9.22 | **Data**: 2026-08-30
 
 ## Estructura
 ```
@@ -46,6 +46,10 @@ send2trash, rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musi
 ```
 
 ## Últimes versions
+- **v6.9.22** (2026-08-30): Millora UI còpia/moviment → mostrar nom del fitxer actual a la barra inline
+  - `src/ui/panel.py` afegit `inline_progress_label` i `show_inline_progress(percent, text)`
+  - `src/ui/main_window.py` `_on_dialog_progress` passa text i `_on_inline_file_started` actualitza etiqueta
+  - Barra de progrés ara mostra `filename (current/total)` durant còpia/movent
 - **v6.9.21** (2026-08-30): Fix F:\ protegit contra escritura + error visible
   - `F:\` Kingston `IsReadOnly=True` (WinError 19) → `CopyJob:278` distingeix cancel vs error i `main_window.py:929` mostra `QMessageBox.critical` (abans no apareixia barra)
   - Verificat: `F:\` NO escrivible, `D:\` SÍ (15 fitxers PASS)
