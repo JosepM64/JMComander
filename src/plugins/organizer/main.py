@@ -318,10 +318,10 @@ class OrganizerConfigDialog(QDialog):
                 try:
                     os.makedirs(dest_path, exist_ok=True)
                     QDesktopServices.openUrl(QUrl.fromLocalFile(dest_path))
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     QMessageBox.warning(self, "Error", f"No se pudo abrir la carpeta: {e}")
 
-    def keyPressEvent(self, event):  # noqa: N802
+    def keyPressEvent(self, event):
         """Manejar tecla Enter para abrir la carpeta destino"""
         if (event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter) and self.table.hasFocus():
             self._open_destination()
@@ -334,7 +334,7 @@ def register(api):
     # La acción se registra a través de plugin.json y se ejecuta vía ActionRegistry
 
 
-def run_organizer(api):  # noqa: PLR0912
+def run_organizer(api):
     """Ejecuta el organizador de archivos"""
     path = api.active_panel.current_path
 
@@ -399,7 +399,7 @@ def run_organizer(api):  # noqa: PLR0912
                 file_size_kb = os.path.getsize(full_path) / 1024
                 if file_size_kb < min_size_kb:
                     continue
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
 
         if ext in rules:
@@ -410,7 +410,7 @@ def run_organizer(api):  # noqa: PLR0912
                 shutil.move(full_path, os.path.join(dest_dir, f))
                 count += 1
                 moved_files.add(f)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 api.show_message(f"Error moviendo {f}: {e}", "error")
 
     # Procesar archivos restantes para categoría "Otros" (si está configurada)
@@ -432,7 +432,7 @@ def run_organizer(api):  # noqa: PLR0912
                     file_size_kb = os.path.getsize(full_path) / 1024
                     if file_size_kb < min_size_kb:
                         continue
-                except Exception:  # noqa: BLE001
+                except Exception:
                     pass
 
             dest_dir = os.path.join(path, other_folder)
@@ -440,7 +440,7 @@ def run_organizer(api):  # noqa: PLR0912
             try:
                 shutil.move(full_path, os.path.join(dest_dir, f))
                 count += 1
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 api.show_message(f"Error moviendo {f} a Otros: {e}", "error")
 
     progress.setValue(len(files))

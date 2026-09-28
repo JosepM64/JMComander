@@ -1,4 +1,4 @@
-import datetime as _DT
+import datetime as _DT  # noqa: N812
 import logging
 import os
 import re
@@ -27,7 +27,7 @@ class ExtendedFileSystemModel(QFileSystemModel):
         self._mtime_cache = {}
         self.directoryLoaded.connect(self._on_directory_loaded)
 
-    def _on_directory_loaded(self, path):
+    def _on_directory_loaded(self, path):  # noqa: ARG002
         self._size_cache.clear()
         self._mtime_cache.clear()
 
@@ -431,10 +431,10 @@ class FileSystemProxyModel(QSortFilterProxyModel):
                 else "unknown"
             )
             logger.debug(
-                f"ProxyModel: set_current_root_source_index:"
-                f" path='{filepath}',"
-                f" isValid={source_index.isValid()},"
-                f" internalId={source_index.internalId()}"
+                "ProxyModel: set_current_root_source_index: path='%s', isValid=%s, internalId=%s",
+                filepath,
+                source_index.isValid(),
+                source_index.internalId(),
             )
         else:
             logger.debug("ProxyModel: set_current_root_source_index: invalid")

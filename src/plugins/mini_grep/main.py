@@ -82,7 +82,7 @@ class GrepWorker(QThread):
                         with open(full_path, encoding="utf-8", errors="ignore") as f:
                             if self.search_term in f.read():
                                 matches.append(os.path.relpath(full_path, self.path))
-                    except Exception:  # noqa: BLE001
+                    except Exception:
                         pass
                     scanned += 1
                     self.progress.emit(scanned, total, file)
@@ -110,7 +110,7 @@ def run_mini_grep(api):
     dlg.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
 
     worker = GrepWorker(api.active_panel.current_path, search_term)
-    worker.progress.connect(lambda v, t, f: (bar.setValue(v), bar.setMaximum(t)))
+    worker.progress.connect(lambda v, t, f: (bar.setValue(v), bar.setMaximum(t)))  # noqa: ARG005
     worker.finished.connect(lambda m: (_show_grep_results(parent, search_term, m), dlg.accept()))
     btn_cancel.clicked.connect(lambda: (worker.cancel(), dlg.reject()))
 

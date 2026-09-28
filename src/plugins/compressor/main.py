@@ -109,7 +109,7 @@ class CompressorDialog(QDialog):
                 return
             QMessageBox.information(self, "Éxito", f"Creado: {full_output}")
             self.accept()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
 
 

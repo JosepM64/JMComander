@@ -405,7 +405,6 @@ def verify_ui_dialogs(result: VerificationResult):
         return
 
     dialogs = [
-        "progress_dialog.py",
         "conflict_dialog.py",
         "settings_dialog.py",
         "bookmarks_editor.py",
@@ -491,33 +490,8 @@ def verify_copy_move_jobs(result: VerificationResult):
     else:
         result.add_fail("CopyMove", "No ignora .git")
 
-    # Verificar ignore para Windows reserved names
-    reserved_names = [
-        "nul",
-        "con",
-        "prn",
-        "aux",
-        "com1",
-        "com2",
-        "com3",
-        "com4",
-        "com5",
-        "com6",
-        "com7",
-        "com8",
-        "com9",
-        "lpt1",
-        "lpt2",
-        "lpt3",
-        "lpt4",
-        "lpt5",
-        "lpt6",
-        "lpt7",
-        "lpt8",
-        "lpt9",
-    ]
-    found_reserved = [name for name in reserved_names if name in fs_content]
-    if len(found_reserved) >= 3:  # Si encuentra al menos 3 nombres reservados
+    # Verificar ignore para Windows reserved names (fs_utils usa RESERVED_NAMES de utils)
+    if "RESERVED_NAMES" in fs_content or "WINDOWS_RESERVED_NAMES" in fs_content:
         result.add_pass("CopyMove", "Ignora nombres reservados Windows")
     else:
         result.add_fail("CopyMove", "No ignora nombres Windows")

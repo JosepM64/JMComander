@@ -61,7 +61,7 @@ class CompareWorker(QThread):
     error = Signal(str)
     progress = Signal(str)
 
-    def __init__(self, left, right, compare_mode, recursive, include, exclude, tolerance=0):
+    def __init__(self, left, right, compare_mode, recursive, include, exclude, tolerance=0):  # noqa: PLR0917
         super().__init__()
         self.left = left
         self.right = right
@@ -166,7 +166,7 @@ def _match_pattern(name, pattern):
     return False
 
 
-def compare_dirs(left, right, compare_mode, recursive, include, exclude, tolerance=0):
+def compare_dirs(left, right, compare_mode, recursive, include, exclude, tolerance=0):  # noqa: PLR0917
     def walk(path, rel=""):
         results = {}
         try:
@@ -262,13 +262,13 @@ def _sort_key(name):
 
 
 # Font única de formateig (core.utils) — abans duplicat aquí amb taula pròpia
-from src.core.utils import format_size as _format_size  # noqa: E402, PLC0415
+from src.core.utils import format_size as _format_size  # noqa: E402
 
 
 def _format_time(timestamp):
     from datetime import datetime
 
-    dt = datetime.fromtimestamp(timestamp)
+    dt = datetime.fromtimestamp(timestamp)  # noqa: DTZ006
     return dt.strftime("%d/%m/%Y %H:%M:%S")
 
 
@@ -590,7 +590,7 @@ class SyncDialog(QDialog):
         self.status_label.setText("Ready.")
         self._update_summary()
 
-    def _add_dir_row(self, row, name, state, info, lf, rf):
+    def _add_dir_row(self, row, name, state, info, lf, rf):  # noqa: ARG002, PLR0917
         chk = QTableWidgetItem()
         chk.setFlags(Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled)
         chk.setCheckState(Qt.CheckState.Unchecked)
@@ -607,7 +607,7 @@ class SyncDialog(QDialog):
             item.setForeground(QColor(100, 100, 100))
             self.table.setItem(row, col, item)
 
-    def _add_file_row(self, row, name, state, info, lf, rf):
+    def _add_file_row(self, row, name, state, info, lf, rf):  # noqa: PLR0917
         self._original_states[row] = state
         chk = QTableWidgetItem()
         chk.setFlags(Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled)

@@ -25,7 +25,7 @@ class FileFinderWorker(QThread):
     progress = Signal(int, int, str)
     finished = Signal(list)
 
-    def __init__(self, path, pattern, search_type, recursive, max_results, parent=None):
+    def __init__(self, path, pattern, search_type, recursive, max_results, parent=None):  # noqa: PLR0917
         super().__init__(parent)
         self.path = path
         self.pattern = pattern.lower() if pattern else ""
@@ -37,7 +37,7 @@ class FileFinderWorker(QThread):
     def cancel(self):
         self.is_cancelled = True
 
-    def run(self):  # noqa: PLR0912
+    def run(self):
         results = []
         scanned = 0
 
@@ -71,7 +71,7 @@ class FileFinderWorker(QThread):
                             results.append(os.path.join(self.path, f))
                 except PermissionError:
                     pass
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
         self.finished.emit(results)
@@ -303,7 +303,7 @@ class FileFinderDialog(QDialog):
                 try:
                     os.remove(path)
                     deleted += 1
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     errors.append(f"{os.path.basename(path)}: {e!s}")
                 self.list_results.takeItem(row)
 
@@ -315,7 +315,7 @@ class FileFinderDialog(QDialog):
                 msg += "\n".join(errors[:3])
             QMessageBox.information(self, "Resultado", msg)
 
-    def closeEvent(self, event):  # noqa: N802
+    def closeEvent(self, event):
         if self.worker and self.worker.isRunning():
             self.worker.cancel()
             self.worker.wait()

@@ -125,16 +125,12 @@ class PluginAPI:
     def copy(self, src: str, dst: str):
 
         engine = OperationEngine.instance(self._mw)
-        self._mw.run_operation(
-            engine.queue_copy([src], dst), f"Copiando {os.path.basename(src)}"
-        )
+        self._mw.run_operation(engine.queue_copy([src], dst), f"Copiando {os.path.basename(src)}")
 
     def move(self, src: str, dst: str):
 
         engine = OperationEngine.instance(self._mw)
-        self._mw.run_operation(
-            engine.queue_move([src], dst), f"Moviendo {os.path.basename(src)}"
-        )
+        self._mw.run_operation(engine.queue_move([src], dst), f"Moviendo {os.path.basename(src)}")
 
     def get_parent_window(self):
         return self._mw
@@ -142,9 +138,7 @@ class PluginAPI:
     def delete(self, paths: list[str]):
 
         engine = OperationEngine.instance(self._mw)
-        self._mw.run_operation(
-            engine.queue_delete(paths), f"Eliminando {len(paths)} elementos"
-        )
+        self._mw.run_operation(engine.queue_delete(paths), f"Eliminando {len(paths)} elementos")
 
     def refresh_panel(self):
         self._mw.active_panel.refresh()
@@ -235,4 +229,3 @@ class PluginAPI:
             "different": different,
             "same": same,
         }
-

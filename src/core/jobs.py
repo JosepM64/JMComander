@@ -269,8 +269,9 @@ class CopyJob(BaseJob, ConflictMixin):
                     )
 
                     logger.info(
-                        f"[CopyJob] After directory copy,"
-                        f" success={success}, bytes_copied={bytes_copied}"
+                        "[CopyJob] After directory copy, success=%s, bytes_copied=%s",
+                        success,
+                        bytes_copied,
                     )
 
                     completed_size += bytes_copied
@@ -278,7 +279,11 @@ class CopyJob(BaseJob, ConflictMixin):
                     if not success:
                         if self.is_cancelled:
                             # v6.9.20: cancel conserva parcial
-                            logger.info(f"[CopyJob] Cancel: conservant parcial a {dst} ({bytes_copied} bytes)")
+                            logger.info(
+                                "[CopyJob] Cancel: conservant parcial a %s (%s bytes)",
+                                dst,
+                                bytes_copied,
+                            )
                             self.signals.cancelled.emit()
                         else:
                             # v6.9.20: error real (ex: F:\ protegit contra escritura) — abans es confonia amb cancel i no mostrava barra/error
@@ -306,8 +311,8 @@ class CopyJob(BaseJob, ConflictMixin):
                         fsrc = None
                         fdst = None
                         try:
-                            fsrc = open(src, "rb")
-                            fdst = open(dst, "wb")
+                            fsrc = open(src, "rb")  # noqa: SIM115
+                            fdst = open(dst, "wb")  # noqa: SIM115
                             # Pre-allocar espai NOMÉS per fitxers petits (a grans, truncate
                             # escriu zeros i bloqueja la còpia durant minuts)
                             if size <= 64 * 1024 * 1024:  # 64MB
@@ -330,10 +335,10 @@ class CopyJob(BaseJob, ConflictMixin):
                                 if percent != last_emit_percent:
                                     global_copied = completed_size + copied
                                     total_percent = (
-                                            int((global_copied / total_size) * 100)
-                                            if total_size > 0
-                                            else int(((i + 1) * 100) / total)
-                                        )
+                                        int((global_copied / total_size) * 100)
+                                        if total_size > 0
+                                        else int(((i + 1) * 100) / total)
+                                    )
                                     self._emit_progress(
                                         f"Copiando {filename} ({percent}%) [{i + 1}/{total}]",
                                         total_percent,
@@ -346,7 +351,7 @@ class CopyJob(BaseJob, ConflictMixin):
                                 if not dst_existed_before and os.path.exists(dst):
                                     try:
                                         os.remove(dst)
-                                    except Exception:
+                                    except Exception:  # noqa: BLE001
                                         pass
                                 self.signals.cancelled.emit()
                                 return
@@ -359,12 +364,12 @@ class CopyJob(BaseJob, ConflictMixin):
                             if fdst:
                                 try:
                                     fdst.close()
-                                except Exception:
+                                except Exception:  # noqa: BLE001
                                     pass
                             if fsrc:
                                 try:
                                     fsrc.close()
-                                except Exception:
+                                except Exception:  # noqa: BLE001
                                     pass
 
             except Exception as e:  # noqa: BLE001
@@ -373,7 +378,7 @@ class CopyJob(BaseJob, ConflictMixin):
                         if os.path.isfile(dst) and os.path.exists(dst):
                             try:
                                 os.remove(dst)
-                            except Exception:
+                            except Exception:  # noqa: BLE001
                                 pass
                         elif os.path.isdir(dst) and os.path.exists(dst):
                             # v6.9.18: error cleanup async per no bloquejar
@@ -382,7 +387,7 @@ class CopyJob(BaseJob, ConflictMixin):
                             def _async_rmtree_err(p=_dst_err):
                                 try:
                                     shutil.rmtree(p, ignore_errors=True)
-                                except Exception:
+                                except Exception:  # noqa: BLE001
                                     pass
 
                             threading.Thread(target=_async_rmtree_err, daemon=True).start()
@@ -415,7 +420,7 @@ class MoveJob(BaseJob, ConflictMixin):
             self._copy_job.cancel()
         self.signals.cancelled.emit()
 
-    def run(self):  # noqa: PLR0912
+    def run(self):
         total = len(self.src_list)
         if total == 0:
             self.signals.finished.emit()
@@ -425,8 +430,7 @@ class MoveJob(BaseJob, ConflictMixin):
         # La ruta copia+esborra era ~1000x més lenta per res aquí.
         dst_drive = os.path.splitdrive(os.path.abspath(self.dst_folder))[0].lower()
         if dst_drive and all(
-            os.path.splitdrive(os.path.abspath(s))[0].lower() == dst_drive
-            for s in self.src_list
+            os.path.splitdrive(os.path.abspath(s))[0].lower() == dst_drive for s in self.src_list
         ):
             self._run_same_volume(total)
             return
@@ -463,8 +467,8 @@ class MoveJob(BaseJob, ConflictMixin):
                     shutil.rmtree(src)
                 else:
                     os.remove(src)
-            except Exception as e:
-                logger.warning(f"[MoveJob] No se pudo eliminar original {src}: {e}")  # noqa: G004
+            except Exception as e:  # noqa: BLE001
+                logger.warning("[MoveJob] No se pudo eliminar original %s: %s", src, e)
 
         self._finish_or_cancel()
 
@@ -488,7 +492,7 @@ class MoveJob(BaseJob, ConflictMixin):
                 os.replace(src, dst)
                 self._emit_progress_for_item("Moviendo", filename, i, total)
             except OSError as e:
-                logger.warning(f"[MoveJob] Rename failed {src} -> {dst}: {e}")  # noqa: G004
+                logger.warning("[MoveJob] Rename failed %s -> %s: %s", src, dst, e)
                 if not self.is_cancelled:
                     self.signals.error.emit(f"No se pudo mover {filename}: {e}")
 
@@ -506,10 +510,10 @@ class MtpCopyJob(BaseJob):
         self.shell_paths = list(shell_paths)
         self.dst_folder = dst_folder
 
-    def run(self):  # noqa: PLR0912
+    def run(self):
         import pythoncom  # noqa: PLC0415
 
-        from src.core.mtp_handler import _copy_single_shell_item  # noqa: PLC0415, SLF001
+        from src.core.mtp_handler import _copy_single_shell_item  # noqa: PLC0415
 
         pythoncom.CoInitialize()
         try:
@@ -616,8 +620,8 @@ class DeleteJob(BaseJob):
             else:
                 os.remove(path)
             return True  # noqa: TRY300
-        except Exception as e:
-            logger.error(f"[SafeRemove] Error al eliminar {path}: {e}", exc_info=True)
+        except Exception:
+            logger.exception("[SafeRemove] Error al eliminar %s: ", path)
             return False
 
     def run(self):
@@ -669,9 +673,9 @@ class SecureDeleteJob(BaseJob):
 
     def run(self):
         logger.info(
-            f"[SecureDeleteJob] Iniciando borrado seguro de"
-            f" {len(self.src_list)} elementos,"
-            f" method={self.secure_params.get('method')}"
+            "[SecureDeleteJob] Iniciando borrado seguro de %s elementos, method=%s",
+            len(self.src_list),
+            self.secure_params.get("method"),
         )
         try:
             total = len(self.src_list)
@@ -715,6 +719,6 @@ class SecureDeleteJob(BaseJob):
                     self.signals.file_finished.emit(filename, False)
 
             self._finish_or_cancel()
-        except Exception as e:
-            logger.error(f"[SecureDeleteJob] Excepción no capturada: {e}", exc_info=True)
+        except Exception:
+            logger.exception("[SecureDeleteJob] Excepción no capturada: ")
             raise

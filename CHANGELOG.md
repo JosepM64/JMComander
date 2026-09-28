@@ -1,5 +1,20 @@
 # Changelog JMComander
 
+## Versió 6.9.24 - Setembre 2026
+
+### Higiene — verify 0 FAIL + neteja duplicats + inici ruff
+- `scripts/verify_automatica.py`: tret `progress_dialog.py` de la llista `dialogs` (codi mort esborrat a v6.9.13) i check noms reservats Windows reescrit cercant `RESERVED_NAMES`/`WINDOWS_RESERVED_NAMES` a `fs_content` (font real: `src/core/utils.py`) → **79 PASS / 0 FAIL / 1 WARN**
+- Esborrats fitxers duplicats: `src/ui/panel(1).py`, `src/version(1).py` i els `.pyc` `panel.cpython-313(1).pyc` / `version.cpython-313(1).pyc`
+- Creat `src/plugins/disk_space/__init__.py` (resol INP001 de ruff)
+- Neteja ruff iniciada: `ruff --fix --unsafe-fixes` + correccions SIM102/G201/G004 → de ~122 a ~87 errors; treball pendent (reparació de `native_menu.py`/`panel.py` i tancament a 0 errors)
+- `src/version.py` bump 6.9.23 → 6.9.24, `AGENTS.md` i `TECHNICAL_MANIFEST.md` actualitzats
+
+## Versió 6.9.23 - Setembre 2026
+
+### Fix — Eliminat warning arxiu gran >100MB
+- `src/ui/panel.py:1001` eliminat bloc `if size > 100*1024*1024` amb `QMessageBox.question("Archivo grande","¿Abrirlo de todas formas?")` — ara `QDesktopServices.openUrl` directe, sense confirmació (vídeos grans obren al moment)
+- `src/version.py` bump 6.9.22 → 6.9.23, `AGENTS.md` actualitzat
+
 ## Versió 6.9.22 - Agost 2026
 
 ### UI — Barra de progrés de còpia/moviment mostra nom del fitxer

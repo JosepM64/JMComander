@@ -130,7 +130,7 @@ class SecureDelete:
             return True  # noqa: TRY300
 
         except Exception as e:  # noqa: BLE001
-            logger.debug(f"Error sobrescribiendo archivo: {e}")  # noqa: G004
+            logger.debug("Error sobrescribiendo archivo: %s", e)
             return False
 
     @classmethod
@@ -185,11 +185,11 @@ class SecureDelete:
             return cls._delete_file(path, method, passes, progress_callback)
 
         except Exception as e:
-            logger.debug(f"Error en borrado seguro: {e}")  # noqa: G004
-            logger.error(
-                f"[SecureDelete] Fallo en delete({path},"
-                f" method={method}): {e}",
-                exc_info=True,
+            logger.debug("Error en borrado seguro: %s", e)
+            logger.exception(
+                "[SecureDelete] Fallo en delete(%s, method=%s)",
+                path,
+                method,
             )
             return False
 
@@ -222,12 +222,8 @@ class SecureDelete:
                     f.write(os.urandom(len(data)))
                 os.remove(filepath)
                 return True  # noqa: TRY300
-            except Exception as e:
-                logger.error(
-                    f"[SecureDelete] Error en borrado SSD"
-                    f" ({filepath}): {e}",
-                    exc_info=True,
-                )
+            except Exception as e:  # noqa: F841
+                logger.exception("[SecureDelete] Error en borrado SSD (%s)", filepath)
                 return False
 
         else:

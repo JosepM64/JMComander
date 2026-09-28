@@ -30,7 +30,7 @@ _SHELL_STYLE = """
 """
 
 
-from src.core.utils import format_size as _core_format_size
+from src.core.utils import format_size as _core_format_size  # noqa: E402
 
 
 def _format_size(size):

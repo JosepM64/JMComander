@@ -11,7 +11,7 @@ class DirectoryWatcher(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        from PySide6.QtCore import QFileSystemWatcher
+        from PySide6.QtCore import QFileSystemWatcher  # noqa: PLC0415
 
         self._file_watcher = QFileSystemWatcher(self)
         self._file_watcher.directoryChanged.connect(self._on_directory_changed)
@@ -38,9 +38,12 @@ class DirectoryWatcher(QObject):
 
         if not force_watcher_reset:
             watched = self._file_watcher.directories()
-            if watched and watched[0] == path:
-                if self._file_watcher.files() or self._file_watcher.directories():
-                    return
+            if (
+                watched
+                and watched[0] == path
+                and (self._file_watcher.files() or self._file_watcher.directories())
+            ):
+                return
 
         self._poll_timer.stop()
         watcher_failed = False
@@ -54,7 +57,7 @@ class DirectoryWatcher(QObject):
             else:
                 logger.debug("File watcher addPath returned False")
                 watcher_failed = True
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("Could not watch directory: %s", e)
             watcher_failed = True
 
@@ -72,14 +75,14 @@ class DirectoryWatcher(QObject):
             watched = self._file_watcher.directories()
             if watched:
                 self._file_watcher.removePaths(watched)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
         self._watched_path = None
 
     def _need_polling(self, path: str) -> bool:
         if not path:
             return False
-        if path.startswith("::") or path.startswith("\\\\?\\") or "shell::" in path.lower():
+        if path.startswith(("::", "\\\\?\\")) or "shell::" in path.lower():
             return True
         return path.startswith("\\\\") and not path.startswith("\\\\?\\")
 
@@ -89,7 +92,7 @@ class DirectoryWatcher(QObject):
                 self._last_poll_files = set(os.listdir(path))
             else:
                 self._last_poll_files = set()
-        except Exception:
+        except Exception:  # noqa: BLE001
             self._last_poll_files = set()
 
     def _poll_for_changes(self):
@@ -102,7 +105,7 @@ class DirectoryWatcher(QObject):
             if current_files != self._last_poll_files:
                 self._last_poll_files = current_files
                 self._do_refresh()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("Error polling for changes: %s", e)
 
     def _on_directory_changed(self, path):
@@ -120,7 +123,7 @@ class DirectoryWatcher(QObject):
             if self._watched_path and os.path.exists(self._watched_path):
                 self._update_poll_cache(self._watched_path)
                 self.directory_changed.emit(self._watched_path)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("Error during auto-refresh: %s", e)
         finally:
             self._refresh_in_progress = False

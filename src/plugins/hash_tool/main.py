@@ -43,7 +43,7 @@ class HashWorker(QThread):
                                 break
                             h.update(block)
                     results.append(f"{os.path.basename(path)}:\n{h.hexdigest()}\n")
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     results.append(f"{os.path.basename(path)}: Error {e}")
             self.progress.emit(i + 1, total)
         self.finished.emit(results)

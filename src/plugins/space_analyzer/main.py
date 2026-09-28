@@ -52,7 +52,7 @@ class ScanWorker(QThread):
                     size = os.path.getsize(path)
                     file_list.append((path, size))
                     total_size += size
-                except Exception:  # noqa: BLE001
+                except Exception:
                     pass
                 if file_count % 100 == 0:
                     self.progress.emit(file_count, 0, file)
@@ -193,7 +193,7 @@ class SpaceAnalyzerDialog(QDialog):
                 os.startfile(path)
             else:
                 subprocess.Popen(["xdg-open", path])
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             QMessageBox.warning(self, "Error", f"No se pudo ejecutar:\n{e!s}")
 
     def open_folder(self, path):
@@ -215,7 +215,7 @@ class SpaceAnalyzerDialog(QDialog):
                 f.write("Analisis de Espacio en Disco\n")
                 f.write("=" * 60 + "\n")
                 f.write(f"Directorio: {self.current_path}\n")
-                f.write(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}\n")
+                f.write(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}\n")  # noqa: DTZ005
                 f.write("=" * 60 + "\n\n")
                 f.write(f"{'TAMANO':>12} | {'RUTA':<45} | ARCHIVO\n")
                 f.write("-" * 100 + "\n")
@@ -228,7 +228,7 @@ class SpaceAnalyzerDialog(QDialog):
                 f.write("\n" + "=" * 60 + "\n")
                 f.write("Generado por JMComander\n")
             QMessageBox.information(self, "Exportado", f"Archivo guardado en:\n{path}")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             QMessageBox.critical(self, "Error", f"No se pudo guardar:\n{e!s}")
 
 

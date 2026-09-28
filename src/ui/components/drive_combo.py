@@ -29,7 +29,7 @@ class DriveCombo(QComboBox):
         if path:
             self.drive_activated.emit(path)
 
-    def update_drives(self, current_path, shell_current_path=None, force_refresh=False):
+    def update_drives(self, current_path, shell_current_path=None, force_refresh=False):  # noqa: PLR0912
         current_drive = os.path.splitdrive(current_path)[0].upper()
         if not current_drive.endswith("/") and not current_drive.endswith("\\"):
             current_drive += "/"

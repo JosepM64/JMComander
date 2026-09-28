@@ -1,11 +1,11 @@
 # JMComander — Manifest Tècnic
 
-## Arquitectura actual (v6.9.21)
+## Arquitectura actual (v6.9.24)
 
 ### Estructura SoC
 ```
 src/
-├── version.py              # Versió actual: 6.9.21
+├── version.py              # Versió actual: 6.9.24
 ├── ui/
 │   ├── main_window.py      # Finestra principal (533 línies + 3 mixins)
 │   ├── panel.py            # Panel de fitxers (sorting, filtres, pestanyes)
@@ -25,7 +25,7 @@ src/
 │   ├── directory_watcher.py# Watcher + polling (v6.8.0)
 │   ├── actions.py          # ActionContext + registre accions (v6.8.0)
 │   └── archive_handler.py  # RAR/7-Zip/ZIP
-└── plugins/                # 15 plugins inclosos
+└── plugins/                # 16 plugins inclosos
 ```
 
 ### Convencions clau
@@ -36,7 +36,7 @@ src/
 | Imports | `src.*` (no relatius) |
 | Senyals Qt | Mètodes `_on_*` |
 | Plugins | Reben `api` (PluginAPI), no `main_window` |
-| Tests | `verify_automatica.py` (82 tests) abans de cada build |
+| Tests | `verify_automatica.py` (79 PASS / 0 FAIL / 1 WARN) abans de cada build |
 | Build | `build.bat` → PyInstaller → `dist/JMComander/` (~200 MB) |
 
 ### Dependències principals
@@ -51,6 +51,9 @@ rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musicbrainzngs
 - `build.bat` usa path directe python.exe
 
 ### Últimes versions
+- **v6.9.24**: verify 79 PASS/0 FAIL/1 WARN, duplicats (1) esborrats, disk_space `__init__`, inici neteja ruff
+- **v6.9.23**: Eliminat warning >100MB a panel.py:1001 (obertura directa vídeos grans)
+- **v6.9.22**: Barra inline mostra filename (current/total) via file_started signal
 - **v6.9.21**: Fase 5.1 9x més ràpid — CopyFileW per tots, 8 workers global, cancel conserva parcial
 - **v6.9.18**: Fase 5 còpies grans — cancel instantani (rmtree async), 4 workers, timeout 0.8s, CopyFileW fast-path
 - **v6.9.17**: Fix disk_space drill-down cancel scan previ

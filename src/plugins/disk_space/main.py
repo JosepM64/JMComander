@@ -3,7 +3,6 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
@@ -61,6 +60,7 @@ class FolderSize:
 
 class FolderSizeWorker(QThread):
     """Worker en segon pla que calcula mides de carpetes directes d'un directori."""
+
     progress = Signal(str, int)  # status text, folders_scanned
     folder_found = Signal(FolderSize)  # emitted per folder for incremental UI
     finished = Signal(list)  # list of FolderSize
@@ -109,7 +109,7 @@ class FolderSizeWorker(QThread):
 
             self.finished.emit(results)
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.error.emit(f"Error escaneant {self.path}: {e!s}")
 
     def _get_folder_size(self, path: str) -> int:
@@ -134,6 +134,7 @@ class FolderSizeWorker(QThread):
 
 class DeleteFoldersWorker(QThread):
     """Esborra carpetes en segon pla (paperera o permanent) sense bloquejar la UI."""
+
     finished = Signal(int, list)  # deleted_count, errors
     error = Signal(str)
 
@@ -150,7 +151,7 @@ class DeleteFoldersWorker(QThread):
         if self.is_cancelled:
             self.finished.emit(0, [])
             return
-            
+
         deleted = 0
         errors = []
         for path in self.paths:
@@ -159,7 +160,7 @@ class DeleteFoldersWorker(QThread):
             try:
                 safe_delete(path, use_trash=self.use_trash)
                 deleted += 1
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 errors.append(f"{path}: {e!s}")
         self.finished.emit(deleted, errors)
 
@@ -328,7 +329,7 @@ class FolderSearchDialog(QDialog):
             for p in to_delete:
                 try:
                     shutil.rmtree(p)
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     QMessageBox.warning(self, "Error", f"No se pudo eliminar: {p}\n{e!s}")
             self.accept()
 
@@ -344,11 +345,12 @@ def _format_size(bytes_val: int) -> str:
 
 class DiskSpaceDialog(QDialog):
     """Diàleg amb vista d'arbre per drill-down de carpetes (estil WizTree/WinDirStat)."""
+
     def __init__(self, path: str, parent=None):
         super().__init__(parent)
         self.path = path
         self.current_path = path
-        self.worker: Optional[FolderSizeWorker] = None
+        self.worker: FolderSizeWorker | None = None
         self.setWindowTitle(f"Espacio en Disco - {path}")
         self.resize(900, 600)
 
@@ -443,7 +445,7 @@ class DiskSpaceDialog(QDialog):
         self.worker.folder_found.connect(self.on_folder_found)
         self.worker.finished.connect(lambda results: self.on_scan_finished(worker, results))
         self.worker.error.connect(lambda msg: self.on_scan_error(msg, worker))
-        self.worker.progress.connect(lambda t, v: self.lbl_status.setText(t))
+        self.worker.progress.connect(lambda t, v: self.lbl_status.setText(t))  # noqa: ARG005
         self.worker.start()
 
     def cancel_scan(self):
@@ -457,11 +459,13 @@ class DiskSpaceDialog(QDialog):
 
     def on_folder_found(self, fs: FolderSize):
         """Afegir carpeta a l'arbre incrementalment."""
-        item = QTreeWidgetItem([
-            fs.name,
-            _format_size(fs.size),
-            ""  # percentage filled later
-        ])
+        item = QTreeWidgetItem(
+            [
+                fs.name,
+                _format_size(fs.size),
+                "",  # percentage filled later
+            ]
+        )
         item.setData(0, Qt.ItemDataRole.UserRole, fs.path)
         item.setData(1, Qt.ItemDataRole.UserRole, fs.size)
         self.tree.addTopLevelItem(item)
@@ -480,7 +484,9 @@ class DiskSpaceDialog(QDialog):
                 pct = (size / total_size) * 100
                 item.setText(2, f"{pct:.1f}%")
 
-        self.lbl_status.setText(f"Completat: {self.tree.topLevelItemCount()} carpetes, total {_format_size(total_size)}")
+        self.lbl_status.setText(
+            f"Completat: {self.tree.topLevelItemCount()} carpetes, total {_format_size(total_size)}"
+        )
         self.btn_scan.setEnabled(True)
         self.btn_cancel.setEnabled(False)
         self.btn_open.setEnabled(True)
@@ -537,7 +543,8 @@ class DiskSpaceDialog(QDialog):
         paths = [
             item.data(0, Qt.ItemDataRole.UserRole)
             for item in selected
-            if item.data(0, Qt.ItemDataRole.UserRole) and os.path.exists(item.data(0, Qt.ItemDataRole.UserRole))
+            if item.data(0, Qt.ItemDataRole.UserRole)
+            and os.path.exists(item.data(0, Qt.ItemDataRole.UserRole))
         ]
         if not paths:
             return

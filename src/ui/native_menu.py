@@ -230,25 +230,17 @@ class WindowsNativeMenu:
 
                     # Si es submenú, verificar si es nuestro o uno problemático
                     if state & win32con.MF_POPUP:
-                        # Es un submenú, verificar si es nuestro
                         if text_lower not in our_submenus:
-                            # Podría ser un submenú problemático (como "Obrir al terminal")
-                            # Verificar si contiene patrones problemáticos
                             if any(pattern in text_lower for pattern in problematic_patterns):
                                 logger.debug(
-                                    f"Eliminando submenú potencialmente problemático: '{text}'"  # noqa: G004
+                                    "Eliminando submenú potencialmente problemático: '%s'", text
                                 )
                                 win32gui.RemoveMenu(hmenu, i, win32con.MF_BYPOSITION)
-                                continue
-                            # Si no es problemático, limpiar recursivamente su contenido
-                            hsubmenu = win32gui.GetSubMenu(hmenu, i)
-                            if hsubmenu:
-                                self._remove_broken_shell_items(hsubmenu)
-                        continue
-
-                    # Para items normales (no submenus)
-                    # Verificar si contiene algun patron problemativo
-                    if (
+                            else:
+                                hsubmenu = win32gui.GetSubMenu(hmenu, i)
+                                if hsubmenu:
+                                    self._remove_broken_shell_items(hsubmenu)
+                    elif (
                         any(pattern in text_lower for pattern in problematic_patterns)
                         and "termi&nal" not in text_lower
                     ):
@@ -256,7 +248,6 @@ class WindowsNativeMenu:
                         win32gui.RemoveMenu(hmenu, i, win32con.MF_BYPOSITION)
                 except Exception as e:  # noqa: BLE001
                     logger.debug("Error al procesar item de menú: %s", e)
-                    continue
         except Exception as e:  # noqa: BLE001
             logger.debug("Error en _remove_broken_shell_items: %s", e)
 
@@ -265,7 +256,6 @@ class WindowsNativeMenu:
     ):
         global _current_cm2, _current_cm3  # noqa: PLW0603
 
-        # 1. Crear finestra invisible Host per rebre missatges del Shell
         hwnd_host = win32gui.CreateWindowEx(
             0,
             _wnd_class_name,
@@ -280,35 +270,27 @@ class WindowsNativeMenu:
             win32api.GetModuleHandle(None),
             None,
         )
-
-        # 2. Obtenir interfícies per a submenús
         try:
-            _current_cm2 = context_menu.QueryInterface(shell.IID_IContextMenu2)
-        except Exception as _e:  # noqa: BLE001
-            _current_cm2 = None
-        try:
-            _current_cm3 = context_menu.QueryInterface(shell.IID_IContextMenu3)
-        except Exception as _e:  # noqa: BLE001
-            _current_cm3 = None
+            try:
+                _current_cm2 = context_menu.QueryInterface(shell.IID_IContextMenu2)
+            except Exception:  # noqa: BLE001
+                _current_cm2 = None
+            try:
+                _current_cm3 = context_menu.QueryInterface(shell.IID_IContextMenu3)
+            except Exception:  # noqa: BLE001
+                _current_cm3 = None
 
-        hmenu = win32gui.CreatePopupMenu()
+            hmenu = win32gui.CreatePopupMenu()
+            base_id = 7 if is_background else 0
 
-        # Para archivos: 7 items antes de QueryContextMenu
-        # (Cut, Copy, Paste, Sep, OpenWith, SendTo, Sep, Edit)
-        # Para carpetas (background): 0 items antes
-        base_id = 7 if not is_background else 0
-
-        try:
-            # Añadir operaciones básicas al inicio del menú (solo para archivos)
             if not is_background:
-                win32gui.AppendMenu(hmenu, win32con.MF_STRING, 0x0011, "Cort&ar")
-                win32gui.AppendMenu(hmenu, win32con.MF_STRING, 0x0012, "&Copiar")
-                win32gui.AppendMenu(hmenu, win32con.MF_STRING, 0x0013, "&Pegar")
+                win32gui.AppendMenu(hmenu, win32con.MF_STRING, 17, "Cort&ar")
+                win32gui.AppendMenu(hmenu, win32con.MF_STRING, 18, "&Copiar")
+                win32gui.AppendMenu(hmenu, win32con.MF_STRING, 19, "&Pegar")
                 win32gui.AppendMenu(hmenu, win32con.MF_SEPARATOR, 0, "")
                 win32gui.AppendMenu(hmenu, win32con.MF_STRING, CUSTOM_OPENWITH_ID, "A&brir con...")
                 win32gui.AppendMenu(hmenu, win32con.MF_STRING, JM_SENDTO_ID, "E&nviar a...")
 
-                # Añadir opciones de edición
                 hsubmenu_edit = win32gui.CreatePopupMenu()
                 win32gui.AppendMenu(
                     hsubmenu_edit,
@@ -316,7 +298,6 @@ class WindowsNativeMenu:
                     JM_EDIT_NOTEPAD_ID,
                     "Editar con &Bloc de notas",
                 )
-
                 # Buscar Notepad++
                 npp_path = self._find_notepadpp()
                 if npp_path:
@@ -431,7 +412,7 @@ class WindowsNativeMenu:
                                     win32gui.RemoveMenu(hmenu, i, win32con.MF_BYPOSITION)
                                     logger.debug("Eliminado menu nativo 'Nuevo': '%s'", text)
                                     break
-                            except Exception as _e:  # noqa: BLE001
+                            except Exception:  # noqa: BLE001
                                 # Si no podemos obtener el texto, eliminarlo solo si no es nuestros
                                 win32gui.RemoveMenu(hmenu, i, win32con.MF_BYPOSITION)
                                 break
@@ -495,7 +476,6 @@ class WindowsNativeMenu:
                     # Restar el offset base para obtener el índice correcto del comando shell
                     cmd_offset = cmd - (base_id + 1)
                     self._execute_shell_command(hwnd_parent, context_menu, cmd_offset, targets[0])
-
         finally:
             # Neteja de referències i destrucció de finestres
             _current_cm2 = None
@@ -577,6 +557,7 @@ foreach ($file in $files) {{
         """Busca Notepad++ via registre o paths estàndard"""
         try:
             import winreg  # noqa: PLC0415
+
             key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Notepad++")
             install_dir = winreg.QueryValueEx(key, "Install_Dir")[0]
             winreg.CloseKey(key)
@@ -621,7 +602,9 @@ foreach ($file in $files) {{
             import subprocess  # noqa: PLC0415
 
             directory = os.path.dirname(path) if os.path.isfile(path) else path
-            subprocess.Popen(["powershell.exe", "-NoExit", "-Command", f'Set-Location "{directory}"'])
+            subprocess.Popen(
+                ["powershell.exe", "-NoExit", "-Command", f'Set-Location "{directory}"']
+            )
             logger.info("Opened PowerShell terminal at %s", directory)
         except Exception as e:
             logger.exception("Error opening PowerShell terminal: %s", e)  # noqa: TRY401

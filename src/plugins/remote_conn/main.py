@@ -142,7 +142,7 @@ def _connect_ftp(api, c, parent_window):
             QMessageBox.information(parent_window, "Éxito", f"Descargado: {f}")
             api.active_panel.refresh()
         ftp.quit()
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         QMessageBox.critical(parent_window, "Error FTP", str(e))
 
 
@@ -167,7 +167,7 @@ def _connect_sftp(api, c, parent_window):
         ssh.close()
     except ImportError:
         QMessageBox.critical(parent_window, "Error", "Instala paramiko:\nconda install paramiko")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         QMessageBox.critical(parent_window, "Error SFTP", str(e))
 
 

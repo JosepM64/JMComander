@@ -85,13 +85,13 @@ class SpeedWorker(QThread):
 
             speed_mbs = total_written / (1000 * 1000) / elapsed if elapsed > 0 else 0
             self.finished.emit(speed_mbs, elapsed)
-        except Exception:  # noqa: BLE001
+        except Exception:
             self.finished.emit(-1, 0)
         finally:
             try:
                 if os.path.exists(test_file):
                     os.remove(test_file)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
 
 

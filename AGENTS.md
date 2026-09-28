@@ -2,7 +2,7 @@
 
 ## Descripció
 Administrador de fitxers de doble panel. Python 3.13 + PySide6.
-- **Versió**: 6.9.22 | **Data**: 2026-08-30
+- **Versió**: 6.9.24 | **Data**: 2026-09-24
 
 ## Estructura
 ```
@@ -10,18 +10,18 @@ JMComander/
 ├── main.py                    # Entry point
 ├── build.bat                  # Build ràpid
 ├── src/
-│   ├── version.py             # Versió: 6.9.21
+│   ├── version.py             # Versió: 6.9.24
 │   ├── core/                  # Lògica
 │   │   ├── jobs.py, fs_utils.py, config.py, actions.py
 │   │   ├── directory_watcher.py   # [NEW v6.8.0] Watcher + polling extret de panel.py
 │   │   └── path_history.py        # Historial de navegació
 │   ├── ui/                    # UI
 │   │   ├── main_window.py
-│   │   ├── panel.py               # 1442 línies (vs 1594 a v6.7.5)
+│   │   ├── panel.py               # 1379 línies (vs 1442 a v6.8.0)
 │   │   └── components/
 │   │       └── breadcrumb_bar.py  # Breadcrumb amb barra de path
-│   └── plugins/               # 15 plugins
-└── scripts/                   # verify_automatica.py (82 tests)
+│   └── plugins/               # 16 plugins
+└── scripts/                   # verify_automatica.py (79 PASS / 0 FAIL / 1 WARN)
 ```
 
 ## Com executar
@@ -46,6 +46,13 @@ send2trash, rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musi
 ```
 
 ## Últimes versions
+- **v6.9.24** (2026-09-24): Higiene + verify 0 FAIL + inici neteja ruff
+  - `verify_automatica.py`: tret `progress_dialog.py` de la llista `dialogs` (codi mort) i check noms reservats reescrit via `RESERVED_NAMES`/`WINDOWS_RESERVED_NAMES` a `fs_content` → **79 PASS / 0 FAIL / 1 WARN**
+  - Esborrats duplicats: `src/ui/panel(1).py`, `src/version(1).py` i els seus `.pyc` `(1)`
+  - Creat `src/plugins/disk_space/__init__.py` (resol INP001)
+  - Ruff en curs: de ~122 → ~87 errors (`--fix`, scripts temporals G004/SIM102/G201); **PENDENT**: reparar `native_menu.py:241` (sintaxi `try` orfe) i `panel.py:457-462` (F821 `s`/`o` fusionats) causats per `scripts/_fix_ruff2.py`, després completar ruff a 0 i re-validar
+- **v6.9.23** (2026-09-01): Eliminada confirmació arxiu gran >100MB
+  - `src/ui/panel.py:1001` eliminat `QMessageBox.question("Archivo grande","¿Abrirlo de todas formas?")` — doble-clic ara obre directe amb `QDesktopServices.openUrl` sense `os.path.getsize` (vídeos grans ja no pregunten)
 - **v6.9.22** (2026-08-30): Millora UI còpia/moviment → mostrar nom del fitxer actual a la barra inline
   - `src/ui/panel.py` afegit `inline_progress_label` i `show_inline_progress(percent, text)`
   - `src/ui/main_window.py` `_on_dialog_progress` passa text i `_on_inline_file_started` actualitza etiqueta
@@ -148,7 +155,7 @@ send2trash, rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musi
 - **v6.9.0** (2026-07-13): Optimizacions rendiment + UX
   - T1: Barra de progrés in-line sota el nav_frame (panel.py + main_window.py) — no modal
   - T2: `get_tree_size` amb timeout 1.5s — si USB lent, salta estimació i mostra progrés per fitxers
-  - T3: Confirmació abans d'obrir arxius >100MB a unitats lentes (QMessageBox)
+  - T3: ~~Confirmació abans d'obrir arxius >100MB a unitats lentes (QMessageBox)~~ eliminat a v6.9.23
   - `fs_utils.py`: buffer 1MB→4MB, eliminat rmtree(dst) previ, throttle callback 1MB
   - `progress_dialog.py`: timer 50ms→100ms, eliminats repaint()/processEvents() redundants
   - Breadcrumb: colors explícits (#1a1a1a/#666) per visibilitat als dos panells

@@ -55,7 +55,7 @@ def _is_file_locked_windows(filepath):
             error = ctypes.get_last_error()
             return error in (ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION)
         ctypes.windll.kernel32.CloseHandle(handle)
-        return False
+        return False  # noqa: TRY300
     except Exception:  # noqa: BLE001
         return False
 
@@ -67,11 +67,11 @@ def _is_dir_locked(dirpath):
         with open(test_file, "w") as f:
             f.write("test")
         os.remove(test_file)
-        return False
+        return False  # noqa: TRY300
     except (PermissionError, OSError):
         try:
             os.scandir(dirpath)
-            return False
+            return False  # noqa: TRY300
         except (PermissionError, OSError):
             return True
 
@@ -88,7 +88,7 @@ def send_to_trash(path):
     try:
         send2trash.send2trash(abs_path)
         return True  # noqa: TRY300
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("No se pudo mover a la papelera %s: %s", abs_path, e)
         return False
 
@@ -129,22 +129,27 @@ def should_overwrite_file(src_file, dst_file, action=None):
     return False
 
 
-def copytree_with_progress(
-    src, dst, progress_callback=None, cancel_flag=None, action=None, dirs_exist_ok=True
+def copytree_with_progress(  # noqa: PLR0912, PLR0917
+    src,
+    dst,
+    progress_callback=None,
+    cancel_flag=None,
+    action=None,
+    dirs_exist_ok=True,  # noqa: ARG001
 ):
     """Copy directory with progress and cancellation support.
     Returns (success, bytes_copied).
     """
-    logger.info(f"[copytree_with_progress] START: src={src}, dst={dst}, action={action}")
+    logger.info("[copytree_with_progress] START: src=%s, dst=%s, action=%s", src, dst, action)
 
     if not os.path.exists(src):
-        logger.error(f"[copytree_with_progress] Source does not exist: {src}")
+        logger.error("[copytree_with_progress] Source does not exist: %s", src)
         return False, 0
 
     try:
         os.makedirs(dst, exist_ok=True)
-    except Exception as e:
-        logger.exception(f"[copytree_with_progress] Error creating destination: {e}")
+    except Exception:
+        logger.exception("[copytree_with_progress] Error creating destination: ")
         return False, 0
 
     total_copied = 0
@@ -154,7 +159,7 @@ def copytree_with_progress(
     stats_lock = threading.Lock()
     cancelled_by_worker = False
 
-    def _copy_single_file(src_file, dst_file):
+    def _copy_single_file(src_file, dst_file):  # noqa: PLR0912
         """Copia un fitxer i retorna bytes copiats, o None si s'ha cancel·lat."""
         nonlocal cancelled_by_worker, total_copied, last_emit_bytes, files_copied
 
@@ -169,7 +174,7 @@ def copytree_with_progress(
                 open(dst_file, "wb").close()
                 try:
                     shutil.copystat(src_file, dst_file)
-                except Exception:
+                except Exception:  # noqa: BLE001
                     pass
                 with stats_lock:
                     files_copied += 1
@@ -189,18 +194,20 @@ def copytree_with_progress(
                     if ok:
                         with stats_lock:
                             total_copied += file_size
-                            if progress_callback and (total_copied - last_emit_bytes) >= (1024 * 1024):
+                            if progress_callback and (total_copied - last_emit_bytes) >= (
+                                1024 * 1024
+                            ):
                                 progress_callback(total_copied)
                                 last_emit_bytes = total_copied
                         try:
                             shutil.copystat(src_file, dst_file)
-                        except Exception:
+                        except Exception:  # noqa: BLE001
                             pass
                         with stats_lock:
                             files_copied += 1
                         return True
                     # Si CopyFileW falla (ex: path llarg, permís), fallback
-                except Exception:
+                except Exception:  # noqa: BLE001
                     pass
                 # Check cancel després de CopyFileW intent
                 if cancel_flag and cancel_flag():
@@ -225,7 +232,9 @@ def copytree_with_progress(
                         fdst.write(buf)
                         with stats_lock:
                             total_copied += len(buf)
-                            if progress_callback and (total_copied - last_emit_bytes) >= (1024 * 1024):
+                            if progress_callback and (total_copied - last_emit_bytes) >= (
+                                1024 * 1024
+                            ):
                                 progress_callback(total_copied)
                                 last_emit_bytes = total_copied
                 finally:
@@ -233,17 +242,17 @@ def copytree_with_progress(
 
             try:
                 shutil.copystat(src_file, dst_file)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
             with stats_lock:
                 files_copied += 1
-            return True
+            return True  # noqa: TRY300
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             if cancelled_by_worker:
                 # v6.9.19: cancel — conservar parcial (no esborrar), només signal
                 return None
-            logger.warning(f"Error copying {src_file}: {e}")
+            logger.warning("Error copying %s: %s", src_file, e)
             return False
 
     # v6.9.19: global futures — abans barrera per directori (seqüencial)
@@ -263,14 +272,14 @@ def copytree_with_progress(
 
                 try:
                     os.makedirs(dst_root, exist_ok=True)
-                except Exception:
+                except Exception:  # noqa: BLE001
                     pass
 
                 for dir_name in dirs:
                     try:
                         dst_dir = os.path.join(dst_root, dir_name)
                         os.makedirs(dst_dir, exist_ok=True)
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         pass
 
                 # Filtrar i preparar tasks del directori actual
@@ -297,7 +306,7 @@ def copytree_with_progress(
                         res = future.result()
                         if res is None:
                             cancelled_by_worker = True
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         pass
                     if progress_callback:
                         with stats_lock:
@@ -307,7 +316,7 @@ def copytree_with_progress(
                         for f in futures:
                             try:
                                 f.cancel()
-                            except Exception:
+                            except Exception:  # noqa: BLE001
                                 pass
                         break
 
@@ -315,23 +324,24 @@ def copytree_with_progress(
                     for f in futures:
                         try:
                             f.cancel()
-                        except Exception:
+                        except Exception:  # noqa: BLE001
                             pass
                     return False, total_copied
 
-        return True, total_copied
+        return True, total_copied  # noqa: TRY300
 
-    except Exception as e:
-        logger.exception(f"Error in copytree_with_progress: {e}")
+    except Exception:
+        logger.exception("Error in copytree_with_progress: ")
         return False, total_copied
 
 
-def get_tree_size(path, progress_callback=None, cancel_flag=None, timeout_s=0.8):
+def get_tree_size(path, progress_callback=None, cancel_flag=None, timeout_s=0.8):  # noqa: ARG001
     """Calculate total size of a file or directory recursively (iterative, no recursion limit).
     Returns 0 if timeout_s is exceeded, to avoid blocking on slow drives.
     v6.9.18: 1.5s → 0.8s: carpetes grans (10k+ fitxers) comencen a copiar abans;
     el fallback time-based de CopyJob ja cobreix progress sense total_size."""
-    import time
+    import time  # noqa: PLC0415
+
     start_time = time.monotonic()
     total = 0
     if os.path.isfile(path):

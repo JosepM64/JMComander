@@ -162,7 +162,7 @@ class MultiRenameDialog(QDialog):
                 try:
                     os.rename(path, dst)
                     renamed_ok += 1
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     errors.append(f"{os.path.basename(path)}: {e}")
             if errors:
                 err_msg = f"Renombrats {renamed_ok} fitxers.\n\nErrors:\n"

@@ -39,10 +39,10 @@ def get_iphone_storage_path(force_refresh=False):
     global _iphone_cache, _iphone_cache_time  # noqa: PLW0603
 
     logger.debug(
-        f"get_iphone_storage_path llamado:"
-        f" force_refresh={force_refresh},"
-        f" cache_time={_iphone_cache_time},"
-        f" cache={_iphone_cache}"
+        "get_iphone_storage_path llamado: force_refresh=%s, cache_time=%s, cache=%s",
+        force_refresh,
+        _iphone_cache_time,
+        _iphone_cache,
     )
 
     if not force_refresh and _iphone_cache_time > 0:
@@ -312,7 +312,7 @@ def _extract_child_name_from_sid(path_or_seg):
     return None
 
 
-def _find_mtp_device_folder(shell, hardware_path, child_names):
+def _find_mtp_device_folder(shell, hardware_path, child_names):  # noqa: ARG001
     """Troba dispositiu MTP navegant des de This PC i retorna la carpeta arrel.
     Cerca items amb SID- al path (dispositius portables)."""
     computers = shell.NameSpace("shell:::{20D04FE0-3AEA-1069-A2D8-08002B30309D}")
@@ -330,7 +330,7 @@ def _find_mtp_device_folder(shell, hardware_path, child_names):
             if folder is not None:
                 logger.info("MTP trobat a This PC: %s", item.Name)
                 return folder
-        except Exception:
+        except Exception:  # noqa: BLE001
             continue
 
     logger.warning("No s'ha trobat MTP a This PC per: %s", hardware_path)
@@ -419,13 +419,14 @@ def copy_shell_items(shell_paths, dst_folder):
 def _copy_single_shell_item(shell, dst_ns, shell_path):
     """Copia UN item shell al namespace destí i retorna el seu nom.
     Llança excepció si falla — el cridador decideix com reportar-ho."""
-    import os  # noqa: PLC0415
 
     if dst_ns is None:
-        raise ValueError("Namespace destí nul")
+        msg = "Namespace destí nul"
+        raise ValueError(msg)
     item = _navigate_to_last_item(str(shell_path), shell)
     if item is None:
-        raise LookupError(f"Item no trobat: {shell_path}")
+        msg = f"Item no trobat: {shell_path}"
+        raise LookupError(msg)
     # 0x14 = FOF_NOCONFIRMATION | FOF_SILENT (sense diàlegs)
     dst_ns.CopyHere(item, 0x14)
     return str(item.Name)
@@ -499,7 +500,7 @@ def _split_shell_path(path_str):
         if sid_idx == -1 and guid_idx == -1:
             break
         idx = sid_idx if sid_idx != -1 and (guid_idx == -1 or sid_idx < guid_idx) else guid_idx
-        rest = current[idx + 1:]
+        rest = current[idx + 1 :]
         # Trobar el final del segment
         end = len(rest)
         sid_next = rest.lower().find("\\sid-", 5 if rest.lower().startswith("sid-") else 1)
@@ -508,6 +509,6 @@ def _split_shell_path(path_str):
         if candidates:
             end = min(candidates)
         parts.append(rest[:end])
-        current = current[idx + 1 + end:]
+        current = current[idx + 1 + end :]
 
     return parts

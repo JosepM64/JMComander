@@ -37,7 +37,7 @@ class ImageConverterWorker(QThread):
     finished = Signal(int, int, list)
     error = Signal(str)
 
-    def __init__(
+    def __init__(  # noqa: PLR0917
         self,
         files,
         output_dir,
@@ -92,9 +92,7 @@ class ImageConverterWorker(QThread):
                     # If both > 0, use as-is (user explicitly set both)
 
                 if target_w > 0 and target_h > 0:
-                    img = img.resize(
-                        (target_w, target_h), Image.Resampling.LANCZOS
-                    )
+                    img = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
                 if self.preserve_original:
                     name = os.path.splitext(os.path.basename(src_path))[0]
@@ -120,7 +118,7 @@ class ImageConverterWorker(QThread):
                 img.save(dst_path, **save_kwargs)
                 converted += 1
 
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 errors.append(f"{os.path.basename(src_path)}: {e!s}")
 
         self.finished.emit(converted, total - converted if self.is_cancelled else total, errors)
@@ -338,7 +336,7 @@ class ImageConverterDialog(QDialog):
             self.worker.cancel()
             self.lbl_status.setText("Cancelando...")
 
-    def closeEvent(self, event):  # noqa: N802
+    def closeEvent(self, event):
         if self.worker and self.worker.isRunning():
             self.worker.cancel()
             self.worker.wait()

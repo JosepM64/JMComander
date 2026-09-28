@@ -95,15 +95,16 @@ class MainWindow(QMainWindow):
                 ):
                     valid_geometry = geom
                     logger.info(
-                        f"Finestra adaptada a pantalla:"
-                        f" {screen.name()}"
-                        f" {screen_geom.width()}x{screen_geom.height()}"
+                        "Finestra adaptada a pantalla: %s %sx%s",
+                        screen.name(),
+                        screen_geom.width(),
+                        screen_geom.height(),
                     )
                     break
 
             if not valid_geometry:
                 logger.warning(
-                    f"Geometria fora de totes les pantalles: {geom}. Buscant pantalla..."  # noqa: G004
+                    "Geometria fora de totes les pantalles: %s. Buscant pantalla...", geom
                 )
 
         if valid_geometry:
@@ -112,7 +113,7 @@ class MainWindow(QMainWindow):
             primary_screen = QGuiApplication.primaryScreen()
             if primary_screen:
                 primary_geom = primary_screen.availableGeometry()
-                new_w, new_h = 1200, 500
+                new_h, new_w = 1200, 500
                 if new_w > primary_geom.width():
                     new_w = primary_geom.width() - 50
                 if new_h > primary_geom.height():
@@ -144,8 +145,16 @@ class MainWindow(QMainWindow):
         if work_dir and os.path.isdir(work_dir):
             fallback_candidates.append(work_dir)
         for rp in recent:
-            if rp and os.path.isdir(rp) and rp not in fallback_candidates and not rp.startswith("::") and "shell::" not in rp.lower():
-                fallback_candidates.append(rp)
+            if not rp or not os.path.isdir(rp):
+                continue
+            if rp in fallback_candidates:
+                continue
+            if rp.startswith("::"):
+                continue
+            if "shell::" in rp.lower():
+                continue
+            fallback_candidates.append(rp)
+
         for candidate in fallback_candidates:
             logger.info("Path no trobat, provant ruta local: %s (original: %s)", candidate, path)
             return candidate
@@ -154,13 +163,16 @@ class MainWindow(QMainWindow):
         if os.path.isdir(home):
             logger.info("Path no trobat, usant directori usuari: %s (original: %s)", home, path)
             return home
+
         logger.info("Path i home no trobats, usant C:\\: %s", path)
         return os.path.abspath(os.sep)
 
     def _init_panels(self):
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
+
         left_path = self._validate_startup_path(self.config.get_left_path())
         right_path = self._validate_startup_path(self.config.get_right_path())
+
         self.left_panel = FilePanel("left", left_path, detect_iphone_on_init=True)
         self.right_panel = FilePanel("right", right_path, detect_iphone_on_init=False)
 
@@ -266,6 +278,7 @@ class MainWindow(QMainWindow):
         self.addAction(self.action_toggle_quicklook)
 
     def _startup_refresh(self):
+        self._init_splitter_sizes()
         for panel in [self.left_panel, self.right_panel]:
             try:
                 panel.refresh(force=True)
@@ -299,8 +312,9 @@ class MainWindow(QMainWindow):
 
         def add_act(key, icon_name, text, slot, shortcut=None):
             logging.debug(
-                f"setup_actions: creating action '{key}'"
-                f" -> {slot.__name__ if hasattr(slot, '__name__') else slot}"
+                "setup_actions: creating action '%s' -> %s",
+                key,
+                slot.__name__ if hasattr(slot, "__name__") else slot,
             )
             icon = self.icon_loader.load_icon(icon_name, text[0])
             act = QAction(icon, text, self)
@@ -512,7 +526,7 @@ class MainWindow(QMainWindow):
         dlg.exec()
 
     def refresh_panel(self):
-        logging.debug(f"refresh_panel called, active_panel={self.active_panel}")  # noqa: G004
+        logging.debug("refresh_panel called, active_panel=%s", self.active_panel)
         self.active_panel.refresh()
 
     def select_all(self):
@@ -582,7 +596,7 @@ class MainWindow(QMainWindow):
         # Assegurar que el panell actiu té el focus abans de canviar el path
         if hasattr(self.active_panel, "setFocus"):
             self.active_panel.setFocus()
-        logger.debug(f"_on_path_request called with path: {p}")
+        logger.debug("_on_path_request called with path: %s", p)
         self.active_panel.set_path(p)
 
     @property
@@ -939,7 +953,7 @@ class MainWindow(QMainWindow):
         # v6.9.20: mostrar error visible (abans només log, l'usuari veia "no apareix barra" sense saber que F:\ està protegit)
         try:
             QMessageBox.critical(self, "Error de copia", error_msg)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
     def _cancel_operation(self, job):

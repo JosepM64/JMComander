@@ -44,7 +44,7 @@ class DuplicateFinderWorker(QThread):
                     size = os.path.getsize(full_path)
                     if size >= self.min_size:
                         files_by_size.setdefault(size, []).append(full_path)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     continue
 
         potential_dupes = {s: paths for s, paths in files_by_size.items() if len(paths) > 1}
@@ -81,7 +81,7 @@ class DuplicateFinderWorker(QThread):
                         return None
                     h.update(chunk)
             return h.hexdigest()
-        except Exception:  # noqa: BLE001
+        except Exception:
             return None
 
 
@@ -239,7 +239,7 @@ class DuplicateFinderDialog(QDialog):
             for p in to_delete:
                 try:
                     os.remove(p)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     pass
             self.accept()
 

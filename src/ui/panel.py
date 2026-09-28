@@ -216,7 +216,9 @@ class FilePanel(QWidget):
         # Barra de progreso in-line (se muestra solo durante operaciones)
         self.inline_progress = QFrame()
         self.inline_progress.setFixedHeight(22)
-        self.inline_progress.setStyleSheet("background-color: #e8f0fe; border: 1px solid #90caf9; border-radius: 2px;")
+        self.inline_progress.setStyleSheet(
+            "background-color: #e8f0fe; border: 1px solid #90caf9; border-radius: 2px;"
+        )
         self.inline_progress.hide()
         inline_layout = QHBoxLayout(self.inline_progress)
         inline_layout.setContentsMargins(4, 0, 4, 0)
@@ -225,7 +227,10 @@ class FilePanel(QWidget):
         self.inline_progress_label = QLabel("")
         self.inline_progress_label.setStyleSheet("color: #0d47a1; font-size: 10px;")
         self.inline_progress_label.setMaximumWidth(220)
-        self.inline_progress_label.setSizePolicy(self.inline_progress_label.sizePolicy().Policy.Fixed, self.inline_progress_label.sizePolicy().Policy.Preferred)
+        self.inline_progress_label.setSizePolicy(
+            self.inline_progress_label.sizePolicy().Policy.Fixed,
+            self.inline_progress_label.sizePolicy().Policy.Preferred,
+        )
         inline_layout.addWidget(self.inline_progress_label)
 
         self.inline_progress_bar = QProgressBar()
@@ -303,6 +308,115 @@ class FilePanel(QWidget):
         self.current_view_widget = self.tree
         self._setup_context_menus()
 
+    def setup_model(self):
+        logger.debug("=== FilePanel.setup_model START ===")
+        _start_time = time.time()
+
+        self.source_model = ExtendedFileSystemModel()
+        self.source_model.setReadOnly(False)
+        self.source_model.directoryLoaded.connect(self._on_directory_loaded)
+
+        self.proxy_model = FileSystemProxyModel(self)
+        self.proxy_model.setSourceModel(self.source_model)
+        self.proxy_model.setDynamicSortFilter(True)
+        self.proxy_model.setFilterCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.proxy_model.setFilterRole(Qt.ItemDataRole.DisplayRole)
+        self.proxy_model.setSortRole(Qt.ItemDataRole.UserRole)
+        self.proxy_model.setRecursiveFilteringEnabled(False)
+
+        for v in (self.tree, self.list, self.icon):
+            v.setModel(self.proxy_model)
+            if v.selectionModel():
+                v.selectionModel().selectionChanged.connect(
+                    lambda *_a, _v=v: self.selection_changed.emit()
+                )
+
+        self.tree.header().sectionClicked.connect(self.on_header_clicked)
+
+        logger.debug("Model setup basic took %ss", time.time() - _start_time)
+
+        _path_set_start = time.time()
+        self.set_path(self.current_path)
+        logger.debug("set_path() took %ss", time.time() - _path_set_start)
+
+        logger.debug("=== FilePanel.setup_model END total=%ss ===", time.time() - _start_time)
+
+        self.proxy_model.sort(4, Qt.SortOrder.DescendingOrder)
+
+    def on_header_clicked(self, s):
+        o = (
+            Qt.SortOrder.DescendingOrder
+            if self.proxy_model.sortOrder() == Qt.SortOrder.AscendingOrder
+            else Qt.SortOrder.AscendingOrder
+        )
+        logger.debug(
+            "Header clicked: column=%s, new order=%s, current before toggle=%s",
+            s,
+            o,
+            self.proxy_model.sortOrder(),
+        )
+        if hasattr(self.proxy_model, "_sort_debug_counter"):
+            self.proxy_model._sort_debug_counter = 0  # noqa: SLF001
+        self.proxy_model.sort(s, o)
+        logger.debug(
+            "After sort: sortColumn=%s, sortOrder=%s",
+            self.proxy_model.sortColumn(),
+            self.proxy_model.sortOrder(),
+        )
+
+    def _start_inline_rename(self, index):
+        logger.debug("Inicia el renombrado inline")
+        p = self.get_path_from_index(index)
+        if not p or not os.path.exists(p):
+            return
+
+        full_name = os.path.basename(p)
+        __name_part, ext_part = os.path.splitext(full_name)
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Renombrar")
+        dialog.setMinimumWidth(400)
+
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Nombre:"))
+
+        line_edit = QLineEdit()
+        line_edit.setText(full_name)
+        layout.addWidget(line_edit)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        dialog.setLayout(layout)
+
+        line_edit.setFocus()
+
+        def select_name_part():
+            if ext_part:
+                line_edit.setSelection(0, len(full_name) - len(ext_part))
+            else:
+                line_edit.selectAll()
+
+        QTimer.singleShot(0, select_name_part)
+
+        ok = dialog.exec()
+        n = line_edit.text()
+
+        if ok and n:
+            try:
+                os.rename(p, os.path.join(os.path.dirname(p), n))
+                self.refresh()
+            except Exception as e:  # noqa: BLE001
+                QMessageBox.warning(self, "Error", str(e))
+
+    def _clear_double_click_flag(self):
+        """No-op: bandera de doble clic retirada (sentinel·la des del pyc 3.14)."""
+        return
+
     def _setup_view(self, view):
         view.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -342,7 +456,7 @@ class FilePanel(QWidget):
             }
         """)
 
-    def _on_item_clicked(self, index, view):
+    def _on_item_clicked(self, _index, _view):
         """Track focused panel on click"""
         self.focused.emit(self)
 
@@ -371,8 +485,9 @@ class FilePanel(QWidget):
 
         # Para carpetas normales (proxy model)
         logger.debug(
-            f"proxy_model exists: {hasattr(self, 'proxy_model')},"
-            f" source_model exists: {hasattr(self, 'source_model')}"
+            "proxy_model exists: %s, source_model exists: %s",
+            hasattr(self, "proxy_model"),
+            hasattr(self, "source_model"),
         )
 
         if not text:
@@ -403,8 +518,9 @@ class FilePanel(QWidget):
             # Log después de establecer el filtro
             regex = self.proxy_model.filterRegularExpression()
             logger.debug(
-                f"Proxy model filter regex valid={regex.isValid()},"
-                f" pattern={regex.pattern() if regex.isValid() else 'invalid'}"
+                "Proxy model filter regex valid=%s, pattern=%s",
+                regex.isValid(),
+                regex.pattern() if regex.isValid() else "invalid",
             )
             # Log current root source index
             if (
@@ -454,141 +570,48 @@ class FilePanel(QWidget):
                 item = self.archive_browser.item(i)
                 if fnmatch.fnmatch(item.text().lower(), pattern.lower()):
                     item.setSelected(select)
-        else:
-            # Per a carpetes normals - Usar modelo fuente directamente
-            # para evitar problemas con filtros activos
-            source_root = self.source_model.index(self.current_path)
-            sm = self.current_view_widget.selectionModel()
+            return
 
-            logger.debug(
-                f"Selecting by pattern '{pattern}' in '{self.current_path}' (select={select})"  # noqa: G004
-            )
+        # Per a carpetes normals - Usar modelo fuente directamente
+        # para evitar problemas con filtros activos
+        source_root = self.source_model.index(self.current_path)
+        sm = self.current_view_widget.selectionModel()
 
-            for row in range(self.source_model.rowCount(source_root)):
-                source_idx = self.source_model.index(row, 0, source_root)
-                filename = self.source_model.fileName(source_idx)
-
-                if fnmatch.fnmatch(filename.lower(), pattern.lower()):
-                    # Mapear índice fuente a proxy para seleccionar
-                    proxy_idx = self.proxy_model.mapFromSource(source_idx)
-                    if proxy_idx.isValid():
-                        mode = (
-                            QItemSelectionModel.Select if select else QItemSelectionModel.Deselect
-                        )
-                        sm.select(proxy_idx, mode | QItemSelectionModel.Rows)
-                        logger.debug("  Selected: %s", filename)
-                    else:
-                        logger.debug("  Skipped (filtered): %s", filename)
-
-    def _start_inline_rename(self, index):
-        """Inicia el renombrado inline"""
-        p = self.get_path_from_index(index)
-        if p and os.path.exists(p):
-            full_name = os.path.basename(p)
-            name_part, ext_part = os.path.splitext(full_name)  # noqa: RUF059
-
-            # Crear diálogo personalizado
-            dialog = QDialog(self)
-            dialog.setWindowTitle("Renombrar")
-            dialog.setMinimumWidth(400)
-
-            layout = QVBoxLayout()
-            layout.addWidget(QLabel("Nombre:"))
-
-            line_edit = QLineEdit()
-            line_edit.setText(full_name)
-            layout.addWidget(line_edit)
-
-            buttons = QDialogButtonBox(
-                QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-            )
-            buttons.accepted.connect(dialog.accept)
-            buttons.rejected.connect(dialog.reject)
-            layout.addWidget(buttons)
-
-            dialog.setLayout(layout)
-
-            # Asegurar que el line edit tenga el foco y seleccionar después de mostrar
-            line_edit.setFocus()
-
-            def select_name_part():
-                if ext_part:
-                    line_edit.setSelection(0, len(full_name) - len(ext_part))
-                else:
-                    line_edit.selectAll()
-
-            # Usar timer para seleccionar después de que el diálogo se muestre
-            QTimer.singleShot(0, select_name_part)
-
-            ok = dialog.exec()
-            n = line_edit.text()
-
-            if ok and n:
-                try:
-                    os.rename(p, os.path.join(os.path.dirname(p), n))
-                    self.refresh()
-                except Exception as e:  # noqa: BLE001
-                    QMessageBox.warning(self, "Error", str(e))
-
-    def setup_model(self):
-        logger.debug("=== FilePanel.setup_model START ===")
-        _start_time = time.time()
-
-        self.source_model = ExtendedFileSystemModel()
-        self.source_model.setReadOnly(False)
-        self.source_model.directoryLoaded.connect(self._on_directory_loaded)
-        self.proxy_model = FileSystemProxyModel(self)
-        self.proxy_model.setSourceModel(self.source_model)
-        self.proxy_model.setDynamicSortFilter(True)
-        self.proxy_model.setFilterCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        self.proxy_model.setFilterRole(Qt.ItemDataRole.DisplayRole)
-        self.proxy_model.setSortRole(Qt.ItemDataRole.UserRole)
-        self.proxy_model.setRecursiveFilteringEnabled(False)
-        for v in [self.tree, self.list, self.icon]:
-            v.setModel(self.proxy_model)
-            if v.selectionModel():
-                v.selectionModel().selectionChanged.connect(lambda: self.selection_changed.emit())  # noqa: PLW0108
-        self.tree.header().sectionClicked.connect(self.on_header_clicked)
-
-        logger.debug("Model setup basic took %ss", time)
-
-        _path_set_start = time.time()
-        self.set_path(self.current_path)
-        logger.debug("set_path() took %ss", time)
-
-        logger.debug("=== FilePanel.setup_model END total=%ss ===", time)
-
-        # Set initial sort to date column, descending order (newest first)
-        self.proxy_model.sort(4, Qt.SortOrder.DescendingOrder)
-
-    def on_header_clicked(self, s):
-        o = (
-            Qt.SortOrder.DescendingOrder
-            if self.proxy_model.sortOrder() == Qt.SortOrder.AscendingOrder
-            else Qt.SortOrder.AscendingOrder
-        )
         logger.debug(
-            f"Header clicked: column={s}, new order={o},"
-            f" current before toggle={self.proxy_model.sortOrder()}"
+            "Selecting by pattern '%s' in '%s' (select=%s)", pattern, self.current_path, select
         )
-        # Reset debug counter to see new sort comparisons
-        if hasattr(self.proxy_model, "_sort_debug_counter"):
-            self.proxy_model._sort_debug_counter = 0  # noqa: SLF001
-        # Force sort
-        self.proxy_model.sort(s, o)
+
+        selected_count = 0
+        skipped_count = 0
+        for row in range(self.source_model.rowCount(source_root)):
+            source_idx = self.source_model.index(row, 0, source_root)
+            filename = self.source_model.fileName(source_idx)
+
+            if not fnmatch.fnmatch(filename.lower(), pattern.lower()):
+                continue
+
+            proxy_idx = self.proxy_model.mapFromSource(source_idx)
+            if proxy_idx.isValid():
+                mode = QItemSelectionModel.Select if select else QItemSelectionModel.Deselect
+                sm.select(proxy_idx, mode | QItemSelectionModel.Rows)
+                selected_count += 1
+                logger.debug("  Selected: %s", filename)
+            else:
+                skipped_count += 1
+                logger.debug("  Skipped (filtered): %s", filename)
+
         logger.debug(
-            f"After sort: sortColumn={self.proxy_model.sortColumn()},"
-            f" sortOrder={self.proxy_model.sortOrder()}"
+            "Pattern selection done: selected=%s skipped=%s", selected_count, skipped_count
         )
 
     def set_path(self, p):
         logger.debug("set_path called with: %s", p)
         _set_path_start = time.time()
 
-        is_shell_path = p.startswith("::") or p.startswith("\\\\?\\") or "shell::" in p.lower()
+        is_shell_path = p.startswith(("::", "\\\\?\\")) or "shell::" in p.lower()
 
         if not is_shell_path and not os.path.exists(p):
-            logging.warning(f"Path does not exist and is not shell path: {p}")
+            logging.warning("Path does not exist and is not shell path: %s", p)
             return
 
         if is_shell_path:
@@ -620,7 +643,7 @@ class FilePanel(QWidget):
     def _apply_to_model(self, path):
         """P2b: Set model root, proxy, and view indices for a normal directory."""
         self.archive_browser.hide()
-        self.proxy_model._timestamp_cache.clear()
+        self.proxy_model._timestamp_cache.clear()  # noqa: SLF001
         if self.source_model.rootPath() != path:
             self.source_model.setRootPath(path)
         source_root_idx = self.source_model.index(path)
@@ -697,7 +720,7 @@ class FilePanel(QWidget):
             return
         if archive_handler.is_inside_archive(self.current_path):
             return
-        self.proxy_model._timestamp_cache.clear()
+        self.proxy_model._timestamp_cache.clear()  # noqa: SLF001
         self.source_model.setRootPath("")
         self.source_model.setRootPath(self.current_path)
         source_root_idx = self.source_model.index(self.current_path)
@@ -710,20 +733,20 @@ class FilePanel(QWidget):
     def _set_shell_path(self, shell_path):
         self.current_path = shell_path
         self.shell_current_path = shell_path
-        logging.info(f"_set_shell_path: {shell_path}")  # noqa: G004
+        logging.info("_set_shell_path: %s", shell_path)
 
         items = list_shell_folder(shell_path)
-        logging.info(f"_set_shell_path: got {len(items)} items")  # noqa: G004
+        logging.info("_set_shell_path: got %s items", len(items))
 
         if not items:
-            logging.warning(f"_set_shell_path: no items returned for {shell_path}")  # noqa: G004
+            logging.warning("_set_shell_path: no items returned for %s", shell_path)
             # Detectar si és una ruta MTP amb SID (com iPhone)
             if "\\SID-" in shell_path:
                 # Extreure la ruta base del dispositiu (abans del \SID-)
                 base_path = shell_path.split("\\SID-")[0]
-                logging.info(f"Intentando con ruta base del dispositivo MTP: {base_path}")  # noqa: G004
+                logging.info("Intentando con ruta base del dispositivo MTP: %s", base_path)
                 items = list_shell_folder(base_path)
-                logging.info(f"Items con ruta base: {len(items)}")  # noqa: G004
+                logging.info("Items con ruta base: %s", len(items))
                 if items:
                     # Actualitzar la ruta i mostrar el dispositivo base
                     self.current_path = base_path
@@ -731,11 +754,11 @@ class FilePanel(QWidget):
             elif "\\" in shell_path:
                 # Intentar listar el directorio padre (per a altres rutes shell)
                 parent_path = shell_path.rsplit("\\", 1)[0]
-                logging.info(f"Intentando con directorio padre: {parent_path}")  # noqa: G004
+                logging.info("Intentando con directorio padre: %s", parent_path)
                 parent_items = list_shell_folder(parent_path)
-                logging.info(f"Parent items: {len(parent_items)}")  # noqa: G004
+                logging.info("Parent items: %s", len(parent_items))
                 for item in parent_items:
-                    logging.info(f"  Parent item: {item['name']} -> {item['path']}")  # noqa: G004
+                    logging.info("  Parent item: %s -> %s", item["name"], item["path"])
 
         self._populate_shell_browser(items)
 
@@ -955,7 +978,7 @@ class FilePanel(QWidget):
         if os.path.isdir(path):
             self.set_path(path)
 
-    def on_item_double_clicked(self, idx):  # noqa: PLR0912
+    def on_item_double_clicked(self, idx):
         logger.debug("on_item_double_clicked START")
         p = self.get_path_from_index(idx)
         logger.debug("on_item_double_clicked: p=%s", p)
@@ -1000,19 +1023,6 @@ class FilePanel(QWidget):
         else:
             logger.debug("Abriendo archivo: %s", p)
             try:
-                # Confirmació per arxius grans (>100 MB) en unitats lentes
-                size = os.path.getsize(p)
-                if size > 100 * 1024 * 1024:  # 100 MB
-                    size_mb = size / (1024 * 1024)
-                    reply = QMessageBox.question(
-                        self,
-                        "Archivo grande",
-                        f'El archivo "{os.path.basename(p)}" tiene {size_mb:.0f} MB.\n\n'
-                        "¿Abrirlo de todas formas?\n(Si está en una unidad lenta, puede tardar)",
-                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    )
-                    if reply != QMessageBox.StandardButton.Yes:
-                        return
                 QDesktopServices.openUrl(QUrl.fromLocalFile(p))
             except Exception as e:
                 logger.exception("Error abriendo %s: %s", p, e)  # noqa: TRY401
@@ -1366,9 +1376,12 @@ class FilePanel(QWidget):
         global_pos = self.current_view_widget.mapToGlobal(position)
         cursor_pos = QCursor.pos()
         logger.debug(
-            f"Context menu - position: {position},"
-            f" mapToGlobal: ({global_pos.x()}, {global_pos.y()}),"
-            f" cursor: ({cursor_pos.x()}, {cursor_pos.y()})"
+            "Context menu - position: %s, mapToGlobal: (%s, %s), cursor: (%s, %s)",
+            position,
+            global_pos.x(),
+            global_pos.y(),
+            cursor_pos.x(),
+            cursor_pos.y(),
         )
 
         # Usar posición del cursor (más confiable)

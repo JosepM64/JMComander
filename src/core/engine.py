@@ -2,7 +2,7 @@ import logging
 
 from PySide6.QtCore import QObject, QThreadPool
 
-from src.core.jobs import CopyJob, DeleteJob, MtpCopyJob, MoveJob, SecureDeleteJob
+from src.core.jobs import CopyJob, DeleteJob, MoveJob, MtpCopyJob, SecureDeleteJob
 
 logger = logging.getLogger(__name__)
 

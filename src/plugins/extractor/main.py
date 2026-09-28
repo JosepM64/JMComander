@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 def _extract(path, dest, password=None):
     ext = os.path.splitext(path.lower())[1]
     if ext in [".rar", ".7z"]:
-        return archive_handler._extract_archive(Path(path), Path(dest), password)  # noqa: SLF001
+        return archive_handler._extract_archive(Path(path), Path(dest), password)
     if ext == ".zip":
         with zipfile.ZipFile(path, "r") as z:
             if password:
@@ -93,7 +93,7 @@ def run_extractor(api):
                 os.makedirs(dest, exist_ok=True)
             if _extract_with_password_prompt(archive_path, dest, parent):
                 count += 1
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.debug("Error extrayendo %s: %s", archive_path, e)
 
     progress.setValue(len(archives))

@@ -52,6 +52,8 @@ exclude = [
 # Allow unused variables when prefixed with underscore
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Unused imports in __init__ are fine
+"main.py" = ["G004", "BLE001", "TRY300", "TRY301", "TRY401", "PLC0415", "SLF001", "N801", "N802", "N803", "N806", "ARG001", "PLR0912"]
+"scripts/*.py" = ["BLE001", "E722", "B006", "B007", "PLR0912", "PERF102", "PLR1714", "F841"]
 
 [tool.ruff.format]
 # Use double quotes by default
