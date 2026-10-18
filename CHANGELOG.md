@@ -1,5 +1,15 @@
 # Changelog JMComander
 
+## Versió 6.9.25 - Octubre 2026
+
+### Nou — Terminal WezTerm amb fallback a PowerShell
+- Nou `src/core/terminal.py`: detecció centralitzada de WezTerm (PATH + rutes típiques + registre `App Paths`) i llançament `wezterm start --cwd <dir>`; retorna False si no hi és
+- `src/core/actions.py`: nova acció `open_wezterm` ("WezTerm aquí", icona `mdi-wezterm.svg` nova) amb avís + fallback automàtic a PowerShell si WezTerm no està instal·lat
+- Toolbar (`toolbar_constants.py`, `config.py`, `main_window.py`): botó `wezterm` darrere de `powershell`; configs antigues el reben col·locat (no al final)
+- Menú contextual natiu (`native_menu.py`): opció "Terminal (WezTerm)" al submenú Terminal (fitxers i fons), amb `MessageBox` + fallback a PowerShell
+- `JMComander.spec`: `src.core.terminal` a `hiddenimports` (regla AGENTS.md)
+- `src/version.py` bump 6.9.24 → 6.9.25
+
 ## Versió 6.9.24 - Setembre 2026
 
 ### Higiene — verify 0 FAIL + neteja duplicats + inici ruff

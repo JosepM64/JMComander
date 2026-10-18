@@ -28,6 +28,7 @@ except ImportError:
             "separator",
             "terminal",
             "powershell",
+            "wezterm",
             "separator",
             "swap",
             "equal",
@@ -111,6 +112,16 @@ class ConfigManager:
         for item in TOOLBAR_MASTER_LAYOUT:
             if item not in new_layout:
                 new_layout.append(item)
+
+        # Nous terminals: inserir "wezterm" darrere de "powershell" (no al final)
+        # quan provingui d'una config antiga que encara no el tenia
+        if "wezterm" in new_layout and "powershell" in new_layout:
+            wi, pi = new_layout.index("wezterm"), new_layout.index("powershell")
+            # Només recol·locar si el merge l'acaba d'afegir al final
+            # (l'usuari encara no l'ha pogut moure manualment)
+            if wi != pi + 1 and saved and "wezterm" not in saved:
+                new_layout.remove("wezterm")
+                new_layout.insert(new_layout.index("powershell") + 1, "wezterm")
 
         # Garantizar que el botón de configuración esté siempre presente
         if "settings" not in new_layout:

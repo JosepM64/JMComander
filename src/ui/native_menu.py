@@ -28,6 +28,7 @@ JM_EDIT_NOTEPADPP_ID = 0x8101
 JM_SENDTO_ID = 0x8102
 JM_TERMINAL_CMD_ID = 0x8103
 JM_TERMINAL_PS_ID = 0x8104
+JM_TERMINAL_WEZTERM_ID = 0x8105
 
 # Constantes de Windows
 WM_INITMENUPOPUP = 0x0117
@@ -324,6 +325,12 @@ class WindowsNativeMenu:
                     "Terminal (&PowerShell)",
                 )
                 win32gui.AppendMenu(
+                    hsubmenu_terminal,
+                    win32con.MF_STRING,
+                    JM_TERMINAL_WEZTERM_ID,
+                    "Terminal (&WezTerm)",
+                )
+                win32gui.AppendMenu(
                     hmenu,
                     win32con.MF_BYPOSITION | win32con.MF_POPUP,
                     hsubmenu_terminal,
@@ -381,6 +388,12 @@ class WindowsNativeMenu:
                     win32con.MF_STRING,
                     JM_TERMINAL_PS_ID,
                     "Terminal (&PowerShell)",
+                )
+                win32gui.AppendMenu(
+                    hsubmenu_terminal_bg,
+                    win32con.MF_STRING,
+                    JM_TERMINAL_WEZTERM_ID,
+                    "Terminal (&WezTerm)",
                 )
                 win32gui.InsertMenu(
                     hmenu,
@@ -464,6 +477,9 @@ class WindowsNativeMenu:
                     return
                 if cmd == JM_TERMINAL_PS_ID:
                     self._handle_terminal_ps(targets[0])
+                    return
+                if cmd == JM_TERMINAL_WEZTERM_ID:
+                    self._handle_terminal_wezterm(targets[0])
                     return
                 if is_background and cmd >= JM_CREA_BASE_ID and creation_callback:
                     if cmd == JM_NEW_FOLDER_ID:
@@ -608,6 +624,33 @@ foreach ($file in $files) {{
             logger.info("Opened PowerShell terminal at %s", directory)
         except Exception as e:
             logger.exception("Error opening PowerShell terminal: %s", e)  # noqa: TRY401
+
+    def _handle_terminal_wezterm(self, path):
+        """Obre WezTerm a la ruta; fallback a PowerShell amb avís si no hi és."""
+        try:
+            import subprocess  # noqa: PLC0415
+
+            from src.core.terminal import open_wezterm  # noqa: PLC0415
+
+            directory = os.path.dirname(path) if os.path.isfile(path) else path
+            if open_wezterm(directory):
+                return
+            # Fallback de seguretat: avisar i obrir PowerShell
+            try:
+                win32api.MessageBox(
+                    0,
+                    "No s'ha trobat WezTerm instal·lat.\n\nS'obrirà PowerShell com a alternativa.",
+                    "WezTerm no trobat",
+                    0x40,  # MB_ICONEXCLAMATION
+                )
+            except Exception:  # noqa: BLE001
+                pass
+            subprocess.Popen(
+                ["powershell.exe", "-NoExit", "-Command", f'Set-Location "{directory}"']
+            )
+            logger.info("WezTerm missing, opened PowerShell fallback at %s", directory)
+        except Exception as e:
+            logger.exception("Error opening WezTerm terminal: %s", e)  # noqa: TRY401
 
     def _handle_cut_copy(self, paths, operation):
         """Maneja cortar y copiar usando IDataObject del shell"""

@@ -24,6 +24,7 @@ TOOLBAR_MASTER_LAYOUT = [
     # Herramientas de sistema
     "terminal",
     "powershell",
+    "wezterm",
     "separator",
     # Paneles y utilidades
     "swap",
@@ -61,6 +62,7 @@ TOOLBAR_DISPLAY_NAMES = {
     "duplicate": "📄 Duplicar",
     "terminal": "💻 Terminal aquí",
     "powershell": "📟 PowerShell aquí",
+    "wezterm": "⌨️ WezTerm aquí",
     "swap": "⇄ Intercambiar paneles",
     "equal": "➡ Igualar paneles",
     "equal_reverse": "⬅ Igualar activo a inactivo",
@@ -91,6 +93,7 @@ TOOLBAR_DEFAULT_TOOLTIPS = {
     "duplicate": "Duplicar archivos/carpetas seleccionados en el mismo directorio (Ctrl+D)",
     "terminal": "Abrir CMD en la ruta actual",
     "powershell": "Abrir PowerShell en la ruta actual",
+    "wezterm": "Abrir WezTerm en la ruta actual (PowerShell si no està instal·lat)",
     "swap": "Intercambiar las rutas de ambos paneles (Ctrl+U)",
     "equal": "Igualar el panel inactivo al activo",
     "equal_reverse": "Igualar el panel activo al inactivo (Ctrl+Alt+Left)",

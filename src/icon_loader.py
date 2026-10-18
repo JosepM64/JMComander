@@ -77,6 +77,7 @@ class IconLoader:
             "mdi-monitor": "monitor",
             "mdi-terminal-outline": "terminal",
             "mdi-console": "terminal",
+            "mdi-wezterm": "terminal",
             "mdi-content-duplicate": "files",
             "mdi-folder-open": "folder",
             "mdi-select-all": "select-all",

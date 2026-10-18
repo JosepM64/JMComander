@@ -2,7 +2,7 @@
 
 ## Descripció
 Administrador de fitxers de doble panel. Python 3.13 + PySide6.
-- **Versió**: 6.9.24 | **Data**: 2026-09-24
+- **Versió**: 6.9.25 | **Data**: 2026-10-04
 
 ## Estructura
 ```
@@ -46,6 +46,10 @@ send2trash, rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musi
 ```
 
 ## Últimes versions
+- **v6.9.25** (2026-10-04): Terminal WezTerm amb fallback a PowerShell
+  - Nou `src/core/terminal.py` (detecció PATH + rutes + registre, `wezterm start --cwd`); acció `open_wezterm` a `actions.py` amb avís + fallback PowerShell
+  - Toolbar (`toolbar_constants.py`, `config.py`, `main_window.py`), menú natiu (`native_menu.py`: "Terminal (WezTerm)" fitxers+fons), icona `mdi-wezterm.svg`, `hiddenimports` al `.spec`
+  - Nota: `src/core/actions.py` va desaparèixer del disc durant la sessió (fora del control de l'agent); reconstruït sencer des de la lectura verificada + re-aplicats els canvis WezTerm — compila i el registre carrega 29 accions
 - **v6.9.24** (2026-09-24): Higiene + verify 0 FAIL + inici neteja ruff
   - `verify_automatica.py`: tret `progress_dialog.py` de la llista `dialogs` (codi mort) i check noms reservats reescrit via `RESERVED_NAMES`/`WINDOWS_RESERVED_NAMES` a `fs_content` → **79 PASS / 0 FAIL / 1 WARN**
   - Esborrats duplicats: `src/ui/panel(1).py`, `src/version(1).py` i els seus `.pyc` `(1)`

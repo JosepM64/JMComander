@@ -20,6 +20,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QInputDialog, QMessageBox
 
 from src.core.fs_utils import get_locked_paths
+from src.core.terminal import open_wezterm
 from src.plugins.compare_dirs.main import compare_dirs
 from src.plugins.organizer.main import run_organizer
 
@@ -192,6 +193,30 @@ def _open_powershell_here(ctx: ActionContext):
     subprocess.Popen(["powershell.exe", "-NoExit", "-Command", f'Set-Location "{path}"'])
 
 
+def _open_wezterm_here(ctx: ActionContext):
+    """Obre WezTerm al path actiu; fallback a PowerShell si no està instal·lat."""
+    path = ctx.active_panel.current_path
+    if open_wezterm(path):
+        return
+    try:
+        QMessageBox.warning(
+            ctx.parent,
+            "WezTerm no trobat",
+            "No s'ha trobat WezTerm instal·lat.\n\n"
+            "S'obrirà PowerShell com a alternativa.\n"
+            "(Instal·la WezTerm des de https://wezfurlong.org/wezterm/)",
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        subprocess.Popen(["powershell.exe", "-NoExit", "-Command", f'Set-Location "{path}"'])
+    except Exception as e:  # noqa: BLE001
+        try:
+            QMessageBox.critical(ctx.parent, "Error", f"No s'ha pogut obrir cap terminal:\n{e}")
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def _open_in_explorer(ctx: ActionContext):
     QDesktopServices.openUrl(QUrl.fromLocalFile(ctx.active_panel.current_path))
 
@@ -285,12 +310,22 @@ def register_core_actions():
     )
     action_registry.register(
         Action(
+            id="open_wezterm",
+            name="WezTerm aquí",
+            icon="mdi-wezterm",
+            category=ActionCategory.FILE.value,
+            order=4,
+            handler=_open_wezterm_here,
+        )
+    )
+    action_registry.register(
+        Action(
             id="copy_path",
             name="Copiar ruta",
             icon="mdi-content-copy-outline",
             shortcut="Ctrl+Shift+C",
             category=ActionCategory.FILE.value,
-            order=4,
+            order=5,
         )
     )
     action_registry.register(
@@ -456,7 +491,7 @@ def register_core_actions():
             name="Abrir en Explorador",
             icon="mdi-folder-open-outline",
             category=ActionCategory.FILE.value,
-            order=6,
+            order=7,
             handler=_open_in_explorer,
         )
     )
@@ -514,7 +549,7 @@ def register_core_actions():
             name="Añadir marcador",
             icon="mdi-star-plus",
             category=ActionCategory.FILE.value,
-            order=5,
+            order=6,
             handler=_add_current_to_bookmarks,
         )
     )

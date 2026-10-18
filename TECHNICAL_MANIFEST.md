@@ -1,11 +1,11 @@
 # JMComander — Manifest Tècnic
 
-## Arquitectura actual (v6.9.24)
+## Arquitectura actual (v6.9.25)
 
 ### Estructura SoC
 ```
 src/
-├── version.py              # Versió actual: 6.9.24
+├── version.py              # Versió actual: 6.9.25
 ├── ui/
 │   ├── main_window.py      # Finestra principal (533 línies + 3 mixins)
 │   ├── panel.py            # Panel de fitxers (sorting, filtres, pestanyes)
@@ -24,6 +24,7 @@ src/
 │   ├── json_store.py       # Base class CRUD
 │   ├── directory_watcher.py# Watcher + polling (v6.8.0)
 │   ├── actions.py          # ActionContext + registre accions (v6.8.0)
+│   ├── terminal.py         # Detecció/llançament WezTerm + fallback (v6.9.25)
 │   └── archive_handler.py  # RAR/7-Zip/ZIP
 └── plugins/                # 16 plugins inclosos
 ```
@@ -51,6 +52,7 @@ rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musicbrainzngs
 - `build.bat` usa path directe python.exe
 
 ### Últimes versions
+- **v6.9.25**: WezTerm com a 3r terminal (acció + toolbar + menú natiu) amb fallback PowerShell; nou `core/terminal.py`
 - **v6.9.24**: verify 79 PASS/0 FAIL/1 WARN, duplicats (1) esborrats, disk_space `__init__`, inici neteja ruff
 - **v6.9.23**: Eliminat warning >100MB a panel.py:1001 (obertura directa vídeos grans)
 - **v6.9.22**: Barra inline mostra filename (current/total) via file_started signal

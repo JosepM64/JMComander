@@ -147,6 +147,7 @@ a = Analysis(
     # Core modules
     'src.core.file_constants',
     'src.core.mtp_handler',
+    'src.core.terminal',
     'src.core.utils',
     'src.core.json_store',
     'src.core.taskbar_progress',

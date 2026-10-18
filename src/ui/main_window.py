@@ -348,6 +348,7 @@ class MainWindow(QMainWindow):
         add_act("explorer", "mdi-monitor", "Explorer", self.open_in_explorer)
         add_act("terminal", "mdi-terminal-outline", "Terminal", self.open_terminal_here)
         add_act("powershell", "mdi-console", "PowerShell", self.open_powershell_here)
+        add_act("wezterm", "mdi-wezterm", "WezTerm", self.open_wezterm_here)
         add_act("duplicate", "mdi-content-duplicate", "Duplicar", self.duplicate_selected, "F9")
         add_act("goto", "mdi-folder-open", "Ir a...", self.go_to_folder, "Ctrl+G")
         self._goto_shift_action = QAction("Ir a (Shift+F7)", self)
@@ -552,6 +553,9 @@ class MainWindow(QMainWindow):
 
     def open_powershell_here(self):
         self._run_action("open_powershell")
+
+    def open_wezterm_here(self):
+        self._run_action("open_wezterm")
 
     def open_in_explorer(self):
         self._run_action("open_in_explorer")

@@ -52,51 +52,52 @@
 |---|--------|-----------|-------|-------------|
 | 14 | **Terminal** | `mdi-terminal-outline.svg` | - | Abre CMD en la ruta actual |
 | 15 | **PowerShell** | `mdi-console.svg` | - | Abre PowerShell en la ruta actual |
+| 16 | **WezTerm** | `mdi-wezterm.svg` | - | Abre WezTerm en la ruta actual (fallback a PowerShell si no està instal·lat) |
 
 ### Pestanyes de Carpeta
 
 | # | Nombre | Icono SVG | Atajo | Descripción |
 |---|--------|-----------|-------|-------------|
-| 16 | **Nova pestanya** | `mdi-tab-plus.svg` | Ctrl+T | Obre una nova pestanya al panell actiu |
-| 17 | **Tancar pestanya** | `mdi-tab-remove.svg` | Ctrl+W | Tanca la pestanya actual del panell |
+| 17 | **Nova pestanya** | `mdi-tab-plus.svg` | Ctrl+T | Obre una nova pestanya al panell actiu |
+| 18 | **Tancar pestanya** | `mdi-tab-remove.svg` | Ctrl+W | Tanca la pestanya actual del panell |
 
 ### Directoris Freqüents i Sincronització
 
 | # | Nombre | Icono SVG | Atajo | Descripción |
 |---|--------|-----------|-------|-------------|
-| 18 | **Hotlist** | `mdi-folder-star.svg` | Ctrl+D | Obre la llista de directoris freqüents |
-| 19 | **Sync Dirs** | `mdi-sync.svg` | - | Compara i sincronitza els dos panells |
+| 19 | **Hotlist** | `mdi-folder-star.svg` | Ctrl+D | Obre la llista de directoris freqüents |
+| 20 | **Sync Dirs** | `mdi-sync.svg` | - | Compara i sincronitza els dos panells |
 
 ### Filtre per Extensió
 
 | # | Nombre | Icono SVG | Atajo | Descripción |
 |---|--------|-----------|-------|-------------|
-| 20 | **\*.ext** | (botó text) | - | Filtra fitxers per categoria d'extensió (Documents, Imatges, Vídeo, Àudio, Arxius, Codi) |
+| 21 | **\*.ext** | (botó text) | - | Filtra fitxers per categoria d'extensió (Documents, Imatges, Vídeo, Àudio, Arxius, Codi) |
 
 ### Gestión de Paneles
 
 | # | Nombre | Icono SVG | Atajo | Descripción |
 |---|--------|-----------|-------|-------------|
-| 21 | **Intercambiar** | `mdi-swap-horizontal.svg` | Ctrl+U | Intercambia las rutas de ambos paneles |
-| 22 | **Igualar** | `mdi-arrow-right-bold.svg` | - | Copia ruta del panel activo al inactivo |
-| 23 | **IgualarInv** | `mdi-arrow-left-bold.svg` | Ctrl+Alt+Left | Copia ruta del panel inactivo al activo |
-| 24 | **Explorer** | `mdi-monitor.svg` | - | Abre la ruta en el Explorador de Windows |
+| 22 | **Intercambiar** | `mdi-swap-horizontal.svg` | Ctrl+U | Intercambia las rutas de ambos paneles |
+| 23 | **Igualar** | `mdi-arrow-right-bold.svg` | - | Copia ruta del panel activo al inactivo |
+| 24 | **IgualarInv** | `mdi-arrow-left-bold.svg` | Ctrl+Alt+Left | Copia ruta del panel inactivo al activo |
+| 25 | **Explorer** | `mdi-monitor.svg` | - | Abre la ruta en el Explorador de Windows |
 
 ### Menús Desplegables
 
 | # | Nombre | Icono SVG | Tipo | Descripción |
 |---|--------|-----------|------|-------------|
-| 25 | **Vista** | `mdi-view-list.svg` | Menu | Cambia modo de visualización |
-| 26 | **Recientes** | `mdi-history.svg` | Menu | Historial de carpetas visitadas |
-| 27 | **Marcadores** | `mdi-bookmark.svg` | Menu | Gestión de marcadores favoritos |
-| 28 | **Plugins** | `mdi-puzzle.svg` | Menu | Herramientas y plugins adicionales |
+| 26 | **Vista** | `mdi-view-list.svg` | Menu | Cambia modo de visualización |
+| 27 | **Recientes** | `mdi-history.svg` | Menu | Historial de carpetas visitadas |
+| 28 | **Marcadores** | `mdi-bookmark.svg` | Menu | Gestión de marcadores favoritos |
+| 29 | **Plugins** | `mdi-puzzle.svg` | Menu | Herramientas y plugins adicionales |
 
 ### Sistema
 
 | # | Nombre | Icono SVG | Atajo | Descripción |
 |---|--------|-----------|-------|-------------|
-| 29 | **Configuración** | `mdi-cog.svg` | - | Abre el diálogo de configuración |
-| 30 | **Info** | `mdi-information.svg` | - | Muestra información del programa |
+| 30 | **Configuración** | `mdi-cog.svg` | - | Abre el diálogo de configuración |
+| 31 | **Info** | `mdi-information.svg` | - | Muestra información del programa |
 
 ---
 
@@ -123,6 +124,7 @@ Cuando se usa el tema **Phosphor**, los iconos MDI se mapean a nombres alternati
 | `mdi-monitor` | `monitor` |
 | `mdi-terminal-outline` | `terminal` |
 | `mdi-console` | `terminal` |
+| `mdi-wezterm` | `terminal` |
 | `mdi-content-duplicate` | `files` |
 | `mdi-folder-open` | `folder` |
 | `mdi-select-all` | `select-all` |
