@@ -107,13 +107,20 @@ class MainWindow(QMainWindow):
                     "Geometria fora de totes les pantalles: %s. Buscant pantalla...", geom
                 )
 
+        max_default_height = 800  # evitar que s'obri massa alta si la geometria guardada és gran
+
         if valid_geometry:
-            self.setGeometry(QRect(*valid_geometry))
+            x, y, w, h = valid_geometry
+            h = min(h, max_default_height)
+            self.setGeometry(QRect(x, y, w, h))
+            logger.info(
+                "Finestra restaurada: %sx%s (alçada limitada a %s)", w, h, max_default_height
+            )
         else:
             primary_screen = QGuiApplication.primaryScreen()
             if primary_screen:
                 primary_geom = primary_screen.availableGeometry()
-                new_h, new_w = 1200, 500
+                new_w, new_h = 1200, 450  # amplada x alçada per defecte (alçada reduïda)
                 if new_w > primary_geom.width():
                     new_w = primary_geom.width() - 50
                 if new_h > primary_geom.height():
@@ -123,7 +130,7 @@ class MainWindow(QMainWindow):
                 self.setGeometry(new_x, new_y, new_w, new_h)
                 logger.info("Finestra centrada: %sx%s a %s,%s", new_w, new_h, new_x, new_y)
             else:
-                self.resize(1200, 500)
+                self.resize(1200, 450)
 
         if self.config.is_maximized():
             self.showMaximized()
