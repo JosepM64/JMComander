@@ -1,5 +1,12 @@
 # Changelog JMComander
 
+## Versió 6.9.27 - Octubre 2026
+
+### Detecció MTP/iPhone a demanda (desactivada al iniciar)
+- `src/ui/components/drive_combo.py`: `update_drives()` no afegeix l'entrada iPhone per defecte (`include_iphone=False`); nou mètode públic `detect_iphone_manual()` que força `get_iphone_storage_path(force_refresh=True)` i afegeix l'entrada al combo si n'hi ha un dispositiu connectat.
+- `src/ui/panel.py`: eliminat el `QTimer` de detecció diferida (300 ms) al iniciar; nou botó "iPhone" a la barra de navegació (icone `SP_ComputerIcon`, tooltip "Detectar iPhone / dispositiu MTP") que crida `detect_iphone_manual()` al clicar. Zero enumeració COM al arrancar.
+- `src/version.py` bump 6.9.26 → 6.9.27
+
 ## Versió 6.9.26 - Octubre 2026
 
 ### Optimització d'arrancada

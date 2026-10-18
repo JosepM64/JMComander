@@ -52,6 +52,7 @@ rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musicbrainzngs
 - `build.bat` usa path directe python.exe
 
 ### Últimes versions
+- **v6.9.27**: Detecció MTP/iPhone a demanda — desactivada al iniciar (`include_iphone=False` a `drive_combo.update_drives()`), nou mètode `detect_iphone_manual()` + botó "iPhone" al panel (`panel.py`). Zero enumeració COM al arrancar.
 - **v6.9.26**: Optimització d'arrancada — icones cachejades per extensió (`file_system_model.py.DecorationRole`), MTP diferit 300ms (`panel.py`), `include_iphone` a `drive_combo.py`, `_validate_startup_path()` rebutja paths shell inexistents (`main_window.py`)
 - **v6.9.25**: WezTerm com a 3r terminal (acció + toolbar + menú natiu) amb fallback PowerShell; nou `core/terminal.py`
 - **v6.9.24**: verify 79 PASS/0 FAIL/1 WARN, duplicats (1) esborrats, disk_space `__init__`, inici neteja ruff

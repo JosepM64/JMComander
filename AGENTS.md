@@ -46,6 +46,9 @@ send2trash, rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musi
 ```
 
 ## Últimes versions
+- **v6.9.27** (2026-10-04): Detecció MTP/iPhone a demanda (desactivada al iniciar)
+  - `drive_combo.py`: `update_drives()` no afegeix l'entrada iPhone per defecte; nou mètode `detect_iphone_manual()` que força detecció i afegeix l'entrada al combo si n'hi ha dispositiu connectat.
+  - `panel.py`: eliminat `QTimer` de detecció diferida (300ms); nou botó "iPhone" a la barra de navegació (`SP_ComputerIcon`) que crida `detect_iphone_manual()` al clicar. Zero enumeració COM al arrancar.
 - **v6.9.26** (2026-10-04): Optimització d'arrancada
   - `file_system_model.py`: icones cachejades per extensió via `DecorationRole` + `QStyle.standardIcon()`, elimina crides Win32 `SHGetFileInfo` per fitxer (~430ms al cProfile)
   - `drive_combo.py`: paràmetre `include_iphone` per omitre detecció MTP al iniciar

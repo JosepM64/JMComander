@@ -158,22 +158,19 @@ class FilePanel(QWidget):
         if DriveCombo:
             self.drive_combo = DriveCombo()
             self.drive_combo.drive_activated.connect(self.set_path)
-            if self.detect_iphone_on_init:
-                # Sense iPhone al iniciar: evita enumeració COM lenta de "Aquest PC".
-                self.drive_combo.update_drives(
-                    self.current_path, force_refresh=False, include_iphone=False
-                )
-                # Afegir l'entrada iPhone diferit (300 ms) per no bloquejar l'arrancada.
-                QTimer.singleShot(
-                    300,
-                    lambda: self.drive_combo.update_drives(
-                        self.current_path, force_refresh=True, include_iphone=True
-                    ),
-                )
-            else:
-                self.drive_combo.update_drives(
-                    self.current_path, force_refresh=False, include_iphone=False
-                )
+            # MTP desactivat al iniciar: sense enumeració COM de "Aquest PC".
+            self.drive_combo.update_drives(
+                self.current_path, force_refresh=False, include_iphone=False
+            )
+
+            # Botó de detecció d'iPhone a demanda (no bloqueja l'arrancada).
+            self.iphone_btn = QToolButton()
+            self.iphone_btn.setIcon(
+                QIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon))
+            )
+            self.iphone_btn.setToolTip("Detectar iPhone / dispositiu MTP")
+            self.iphone_btn.clicked.connect(self._on_detect_iphone)
+            nav.addWidget(self.iphone_btn)
         else:
             self.drive_combo = QComboBox()
             self.drive_combo.setFixedWidth(80)
@@ -1242,6 +1239,15 @@ class FilePanel(QWidget):
 
     def go_home(self):
         self.set_path(QDir.homePath())
+
+    def _on_detect_iphone(self):
+        """Detecció d'iPhone a demanda (usuari clica el botó de la barra de navegació)."""
+        found = self.drive_combo.detect_iphone_manual()
+        if found:
+            logger.info("iPhone/MTP detectat a demanda")
+        else:
+            logger.info("No s'ha trobat cap dispositiu iPhone/MTP")
+        return found
 
     def refresh(self, force=False):
         logger.debug("refresh() called, current_path=%s, force=%s", self, force)

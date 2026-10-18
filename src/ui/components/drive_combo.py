@@ -91,7 +91,7 @@ class DriveCombo(QComboBox):
     def _add_iphone_entry(self, shell_current_path=None, force_refresh=False):
         iphone_info = get_iphone_storage_path(force_refresh)
         if not iphone_info:
-            return
+            return False
 
         if isinstance(iphone_info, tuple) and len(iphone_info) == 2:
             iphone_shell_path, iphone_name = iphone_info
@@ -100,12 +100,21 @@ class DriveCombo(QComboBox):
             iphone_shell_path = iphone_info
             label = "[iPhone] iPhone"
         else:
-            return
+            return False
 
         for i in range(self.count()):
             if self.itemData(i) == iphone_shell_path:
-                return
+                return False
 
         self.addItem(label, iphone_shell_path)
         if shell_current_path and iphone_shell_path == shell_current_path:
             self.setCurrentIndex(self.count() - 1)
+        return True
+
+
+    def detect_iphone_manual(self, shell_current_path=None):
+        """Força una detecció d'iPhone a demanda (usuari clica el botó).
+
+        Retorna True si s'ha afegit l'entrada iPhone, False si no s'ha trobat cap.
+        """
+        return self._add_iphone_entry(shell_current_path, force_refresh=True)
