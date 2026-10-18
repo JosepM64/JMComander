@@ -2,7 +2,7 @@
 
 ## Descripció
 Administrador de fitxers de doble panel. Python 3.13 + PySide6.
-- **Versió**: 6.9.25 | **Data**: 2026-10-04
+- **Versió**: 6.9.29 | **Data**: 2026-10-19
 
 ## Estructura
 ```
@@ -46,6 +46,15 @@ send2trash, rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musi
 ```
 
 ## Últimes versions
+- **v6.9.29** (2026-10-19): Botó iPhone visible a "Orden Barra" i toolbar principal
+  - `toolbar_constants.py`: `iphone` a `TOOLBAR_MASTER_LAYOUT` (després de `explorer`).
+  - `main_window.py`: acció `iphone` (icona `mdi-cellphone` nova) → `detect_iphone_panels()` als dos panells.
+  - `config.py`: merge recol·loca `iphone` abans del spacer en configs antigues.
+  - `version.py` bump 6.9.28 → 6.9.29.
+- **v6.9.28** (2026-10-04): Botó iPhone a l'ajuda de la toolbar (roda dentada)
+  - `toolbar_constants.py`: entrada `iphone` a `TOOLBAR_DISPLAY_NAMES` ("📱 Detectar iPhone / MTP") i `TOOLBAR_DEFAULT_TOOLTIPS` ("Detectar iPhone / dispositiu MTP connectat (a demanda)"). Apareix a les pestanyes "Orden Barra" i "Textos Ayuda" del SettingsDialog.
+  - `panel.py`: el botó iPhone utilitza el tooltip del diccionari per consistència.
+  - `version.py` bump 6.9.27 → 6.9.28. verify 79 PASS / 0 FAIL / 1 WARN. build BUILD SUCCESSFUL.
 - **v6.9.27** (2026-10-04): Detecció MTP/iPhone a demanda (desactivada al iniciar)
   - `drive_combo.py`: `update_drives()` no afegeix l'entrada iPhone per defecte; nou mètode `detect_iphone_manual()` que força detecció i afegeix l'entrada al combo si n'hi ha dispositiu connectat.
   - `panel.py`: eliminat `QTimer` de detecció diferida (300ms); nou botó "iPhone" a la barra de navegació (`SP_ComputerIcon`) que crida `detect_iphone_manual()` al clicar. Zero enumeració COM al arrancar.

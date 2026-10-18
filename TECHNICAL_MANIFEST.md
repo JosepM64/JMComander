@@ -55,7 +55,9 @@ rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musicbrainzngs
 - **v6.9.27**: Detecció MTP/iPhone a demanda — desactivada al iniciar (`include_iphone=False` a `drive_combo.update_drives()`), nou mètode `detect_iphone_manual()` + botó "iPhone" al panel (`panel.py`). Zero enumeració COM al arrancar.
 - **v6.9.26**: Optimització d'arrancada — icones cachejades per extensió (`file_system_model.py.DecorationRole`), MTP diferit 300ms (`panel.py`), `include_iphone` a `drive_combo.py`, `_validate_startup_path()` rebutja paths shell inexistents (`main_window.py`)
 - **v6.9.25**: WezTerm com a 3r terminal (acció + toolbar + menú natiu) amb fallback PowerShell; nou `core/terminal.py`
-- **v6.9.24**: verify 79 PASS/0 FAIL/1 WARN, duplicats (1) esborrats, disk_space `__init__`, inici neteja ruff
+- **v6.9.29**: Botó iPhone a TOOLBAR_MASTER_LAYOUT + acció a main_window (`detect_iphone_panels`, icona mdi-cellphone nova); merge recol·loca iphone abans del spacer.
+- **v6.9.28**: Botó iPhone a l'ajuda de la toolbar (roda dentada): entrada `iphone` a `toolbar_constants.py`, tooltip consistenci a `panel.py`. verify 79 PASS/0 FAIL/1 WARN.
+- **v6.9.27**: verify 79 PASS/0 FAIL/1 WARN, duplicats (1) esborrats, disk_space `__init__`, inici neteja ruff
 - **v6.9.23**: Eliminat warning >100MB a panel.py:1001 (obertura directa vídeos grans)
 - **v6.9.22**: Barra inline mostra filename (current/total) via file_started signal
 - **v6.9.21**: Fase 5.1 9x més ràpid — CopyFileW per tots, 8 workers global, cancel conserva parcial

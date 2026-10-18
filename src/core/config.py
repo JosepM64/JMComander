@@ -123,6 +123,18 @@ class ConfigManager:
                 new_layout.remove("wezterm")
                 new_layout.insert(new_layout.index("powershell") + 1, "wezterm")
 
+        # Botó iPhone (v6.9.29): el merge genèric l'afegiria al final (després
+        # de settings/help); recol·locar-lo abans del spacer en configs antigues
+        if (
+            "iphone" in new_layout
+            and saved
+            and "iphone" not in saved
+            and "spacer" in new_layout
+            and new_layout.index("iphone") > new_layout.index("spacer")
+        ):
+            new_layout.remove("iphone")
+            new_layout.insert(new_layout.index("spacer"), "iphone")
+
         # Garantizar que el botón de configuración esté siempre presente
         if "settings" not in new_layout:
             new_layout.append("settings")

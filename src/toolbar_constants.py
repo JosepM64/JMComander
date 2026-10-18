@@ -31,6 +31,7 @@ TOOLBAR_MASTER_LAYOUT = [
     "equal",
     "equal_reverse",
     "explorer",
+    "iphone",
     "separator",
     # Vista y navegación
     "view_mode",
@@ -75,6 +76,7 @@ TOOLBAR_DISPLAY_NAMES = {
     "spacer": "--- Espaciador ---",
     "settings": "⚙ Configuración",
     "help": "❓ Ajuda rapida",
+    "iphone": "📱 Detectar iPhone / MTP",
 }
 
 TOOLBAR_DEFAULT_TOOLTIPS = {
@@ -105,4 +107,5 @@ TOOLBAR_DEFAULT_TOOLTIPS = {
     "plugins": "Acceder a herramientas y plugins adicionales",
     "settings": "Configurar opciones del programa",
     "help": "Ajuda rapida - dreceres i funcions (F1)",
+    "iphone": "Detectar iPhone / dispositiu MTP connectat (a demanda)",
 }

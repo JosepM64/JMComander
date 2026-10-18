@@ -353,6 +353,7 @@ class MainWindow(QMainWindow):
             "Ctrl+Alt+Left",
         )
         add_act("explorer", "mdi-monitor", "Explorer", self.open_in_explorer)
+        add_act("iphone", "mdi-cellphone", "iPhone", self.detect_iphone_panels)
         add_act("terminal", "mdi-terminal-outline", "Terminal", self.open_terminal_here)
         add_act("powershell", "mdi-console", "PowerShell", self.open_powershell_here)
         add_act("wezterm", "mdi-wezterm", "WezTerm", self.open_wezterm_here)
@@ -1216,6 +1217,14 @@ class MainWindow(QMainWindow):
             self.left_panel.update_drives(force_refresh=True)
         if hasattr(self, "right_panel"):
             self.right_panel.update_drives(force_refresh=True)
+
+    def detect_iphone_panels(self):
+        """Detecció iPhone/MTP a demanda: força la cerca i afegeix
+        l'entrada al combo dels dos panells si hi ha dispositiu connectat."""
+        for panel in [self.left_panel, self.right_panel]:
+            combo = getattr(panel, "drive_combo", None)
+            if combo is not None and hasattr(combo, "detect_iphone_manual"):
+                combo.detect_iphone_manual()
 
     def _create_settings_button(self):
         b = QToolButton(self)

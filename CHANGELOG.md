@@ -1,5 +1,22 @@
 # Changelog JMComander
 
+## Versió 6.9.29 - Octubre 2026
+
+### Botó iPhone visible a "Orden Barra" i a la toolbar principal
+- `src/toolbar_constants.py`: entrada `iphone` afegida a `TOOLBAR_MASTER_LAYOUT` (després de `explorer`). Sense això no apareixia a la pestanya "Orden Barra" del SettingsDialog (que llista el layout, no els tooltips).
+- `src/ui/main_window.py`: nova acció `add_act("iphone", "mdi-cellphone", "iPhone", self.detect_iphone_panels)` + mètode `detect_iphone_panels()` que crida `detect_iphone_manual()` als combos dels dos panells. La toolbar principal ara té un botó iPhone funcional.
+- `src/assets/icons/mdi-cellphone.svg`: icona MDI nova.
+- `src/core/config.py` `_merge_toolbar_layout()`: en configs antigues, el merge genèric afegiria `iphone` al final (després de settings/help); ara es recol·loca abans del `spacer`.
+- `src/version.py` bump 6.9.28 → 6.9.29
+
+## Versió 6.9.28 - Octubre 2026
+
+### Botó iPhone a l'ajuda de la toolbar (roda dentada)
+- `src/toolbar_constants.py`: afegida entrada `iphone` a `TOOLBAR_DISPLAY_NAMES` ("📱 Detectar iPhone / MTP") i a `TOOLBAR_DEFAULT_TOOLTIPS` ("Detectar iPhone / dispositiu MTP connectat (a demanda)"). Apareix a les pestanyes **"Orden Barra"** i **"Textos Ayuda"** del SettingsDialog (roda dentada superior).
+- `src/ui/panel.py`: el botó iPhone utilitza ara `TOOLBAR_DEFAULT_TOOLTIPS["iphone"]` per consistència amb l'ajuda.
+- `src/version.py` bump 6.9.27 → 6.9.28
+- verify 79 PASS / 0 FAIL / 1 WARN; build `dist/JMComander/JMComander.exe` BUILD SUCCESSFUL.
+
 ## Versió 6.9.27 - Octubre 2026
 
 ### Detecció MTP/iPhone a demanda (desactivada al iniciar)

@@ -79,6 +79,7 @@ from PySide6.QtGui import QAction, QCursor, QDesktopServices, QIcon
 from src.core.archive_handler import archive_handler
 from src.core.directory_watcher import DirectoryWatcher
 from src.core.path_history import PathHistory
+from src.toolbar_constants import TOOLBAR_DEFAULT_TOOLTIPS
 
 logger = logging.getLogger(__name__)
 
@@ -165,10 +166,13 @@ class FilePanel(QWidget):
 
             # Botó de detecció d'iPhone a demanda (no bloqueja l'arrancada).
             self.iphone_btn = QToolButton()
+            self.iphone_btn.setText("iPhone")
             self.iphone_btn.setIcon(
                 QIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon))
             )
-            self.iphone_btn.setToolTip("Detectar iPhone / dispositiu MTP")
+            self.iphone_btn.setIconSize(QSize(16, 16))
+            self.iphone_btn.setFixedSize(QSize(44, 28))
+            self.iphone_btn.setToolTip(TOOLBAR_DEFAULT_TOOLTIPS["iphone"])
             self.iphone_btn.clicked.connect(self._on_detect_iphone)
             nav.addWidget(self.iphone_btn)
         else:
