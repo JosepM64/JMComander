@@ -29,7 +29,7 @@ class DriveCombo(QComboBox):
         if path:
             self.drive_activated.emit(path)
 
-    def update_drives(self, current_path, shell_current_path=None, force_refresh=False):  # noqa: PLR0912
+    def update_drives(self, current_path, shell_current_path=None, force_refresh=False, include_iphone=True):  # noqa: PLR0912
         current_drive = os.path.splitdrive(current_path)[0].upper()
         if not current_drive.endswith("/") and not current_drive.endswith("\\"):
             current_drive += "/"
@@ -83,7 +83,8 @@ class DriveCombo(QComboBox):
             if norm_path == current_drive:
                 self.setCurrentIndex(self.count() - 1)
 
-        self._add_iphone_entry(shell_current_path, force_refresh)
+        if include_iphone:
+            self._add_iphone_entry(shell_current_path, force_refresh)
 
         self.blockSignals(False)
 

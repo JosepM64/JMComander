@@ -1,5 +1,14 @@
 # Changelog JMComander
 
+## Versió 6.9.26 - Octubre 2026
+
+### Optimització d'arrancada
+- `src/ui/file_system_model.py`: nou `_icon_for_ext()` + `ExtendedFileSystemModel.DecorationRole` amb icones cachejades per extensió (`QStyle.standardIcon()`), evita crides Win32 `SHGetFileInfo` per cada fitxer visible (cuell d'ampolla ~430ms al cProfile)
+- `src/ui/components/drive_combo.py`: paràmetre `include_iphone` a `update_drives()` per omitre la detecció MTP/iPhone al iniciar
+- `src/ui/panel.py`: detecció MTP diferida 300 ms (`QTimer.singleShot`) al panell esquerre; icones de carpeta/fitxer via `QStyle.standardIcon()` (sense `QFileIconProvider` que crashava)
+- `src/ui/main_window.py`: `_validate_startup_path()` no accepta paths shell (`::`) que no existixin — evita enumeració COM completa de "Aquest PC" quan `config.json` té un `left_path` d'iPhone no connectat
+- `src/version.py` bump 6.9.25 → 6.9.26
+
 ## Versió 6.9.25 - Octubre 2026
 
 ### Nou — Terminal WezTerm amb fallback a PowerShell

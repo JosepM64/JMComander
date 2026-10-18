@@ -143,7 +143,7 @@ class MainWindow(QMainWindow):
         self._main_layout.setSpacing(0)
 
     def _validate_startup_path(self, path):
-        if path and (os.path.exists(path) or path.startswith("::") or "shell::" in path.lower()):
+        if path and os.path.exists(path):
             return path
 
         recent = self.config.get_recent_paths()

@@ -4,10 +4,61 @@ import os
 import re
 
 from PySide6.QtCore import QModelIndex, QSortFilterProxyModel, Qt
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QApplication, QFileSystemModel, QStyle
 
 from src.core.file_constants import get_extension, get_file_category, get_file_type_display
 
 logger = logging.getLogger(__name__)
+
+
+def _icon_for_ext(ext: str) -> QIcon:
+    """Retorna una icone estàtica per extensió (sense crides Win32)."""
+    style = QApplication.instance().style()
+    category = {
+        ".jpg": QStyle.StandardPixmap.SP_FileDialogContents,
+        ".jpeg": QStyle.StandardPixmap.SP_FileDialogContents,
+        ".png": QStyle.StandardPixmap.SP_FileDialogContents,
+        ".gif": QStyle.StandardPixmap.SP_FileDialogContents,
+        ".bmp": QStyle.StandardPixmap.SP_FileDialogContents,
+        ".webp": QStyle.StandardPixmap.SP_FileDialogContents,
+        ".heic": QStyle.StandardPixmap.SP_FileDialogContents,
+        ".mp4": QStyle.StandardPixmap.SP_MediaVolume,
+        ".mkv": QStyle.StandardPixmap.SP_MediaVolume,
+        ".avi": QStyle.StandardPixmap.SP_MediaVolume,
+        ".mov": QStyle.StandardPixmap.SP_MediaVolume,
+        ".mp3": QStyle.StandardPixmap.SP_MediaPlaylist,
+        ".wav": QStyle.StandardPixmap.SP_MediaPlaylist,
+        ".flac": QStyle.StandardPixmap.SP_MediaPlaylist,
+        ".aac": QStyle.StandardPixmap.SP_MediaPlaylist,
+        ".zip": QStyle.StandardPixmap.SP_FileDialogStart,
+        ".rar": QStyle.StandardPixmap.SP_FileDialogStart,
+        ".7z": QStyle.StandardPixmap.SP_FileDialogStart,
+        ".gz": QStyle.StandardPixmap.SP_FileDialogStart,
+        ".tar": QStyle.StandardPixmap.SP_FileDialogStart,
+        ".pdf": QStyle.StandardPixmap.SP_FileDialogDetailedView,
+        ".doc": QStyle.StandardPixmap.SP_FileDialogDetailedView,
+        ".docx": QStyle.StandardPixmap.SP_FileDialogDetailedView,
+        ".xls": QStyle.StandardPixmap.SP_FileDialogDetailedView,
+        ".xlsx": QStyle.StandardPixmap.SP_FileDialogDetailedView,
+        ".ppt": QStyle.StandardPixmap.SP_FileDialogDetailedView,
+        ".pptx": QStyle.StandardPixmap.SP_FileDialogDetailedView,
+        ".txt": QStyle.StandardPixmap.SP_FileDialogDetailedView,
+        ".log": QStyle.StandardPixmap.SP_FileDialogDetailedView,
+        ".md": QStyle.StandardPixmap.SP_FileDialogDetailedView,
+        ".exe": QStyle.StandardPixmap.SP_ComputerIcon,
+        ".msi": QStyle.StandardPixmap.SP_ComputerIcon,
+        ".bat": QStyle.StandardPixmap.SP_ComputerIcon,
+        ".cmd": QStyle.StandardPixmap.SP_ComputerIcon,
+        ".py": QStyle.StandardPixmap.SP_FileIcon,
+        ".js": QStyle.StandardPixmap.SP_FileIcon,
+        ".ts": QStyle.StandardPixmap.SP_FileIcon,
+        ".html": QStyle.StandardPixmap.SP_FileIcon,
+        ".css": QStyle.StandardPixmap.SP_FileIcon,
+        ".json": QStyle.StandardPixmap.SP_FileIcon,
+        ".xml": QStyle.StandardPixmap.SP_FileIcon,
+    }.get(ext, QStyle.StandardPixmap.SP_FileIcon)
+    return QIcon(style.standardIcon(category))
 
 
 def natural_sort_key(s):
@@ -15,16 +66,15 @@ def natural_sort_key(s):
         s = str(s)
     return [int(chunk) if chunk.isdigit() else chunk.lower() for chunk in re.split(r"(\d+)", s)]
 
-
-from PySide6.QtWidgets import QFileSystemModel  # noqa: E402
-
-
 class ExtendedFileSystemModel(QFileSystemModel):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, folder_icon=None, file_icon=None):
         super().__init__(parent)
         self._columns = ["Nombre", "Ext", "Tamaño", "Tipo", "Fecha", "Hora"]
         self._size_cache = {}
         self._mtime_cache = {}
+        self._icon_cache = {}   # ext_lower -> QIcon
+        self._folder_icon = folder_icon
+        self._file_icon = file_icon
         self.directoryLoaded.connect(self._on_directory_loaded)
 
     def _on_directory_loaded(self, path):  # noqa: ARG002
@@ -42,6 +92,22 @@ class ExtendedFileSystemModel(QFileSystemModel):
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):  # noqa: PLR0912
         if not index.isValid():
             return None
+
+        # DecorationRole per columna 0: icones cachejades per extensió,
+        # evita crides Win32 SHGetFileInfo per cada fitxer visible.
+        if role == Qt.ItemDataRole.DecorationRole and index.column() == 0:
+            file_path = self.filePath(index)
+            if file_path:
+                if os.path.isdir(file_path):
+                    if self._folder_icon is not None:
+                        return self._folder_icon
+                else:
+                    ext = os.path.splitext(file_path)[1].lower()
+                    if ext not in self._icon_cache:
+                        self._icon_cache[ext] = _icon_for_ext(ext)
+                    return self._icon_cache[ext]
+            if self._file_icon is not None:
+                return self._file_icon
 
         column = index.column()
         file_path = self.filePath(index)

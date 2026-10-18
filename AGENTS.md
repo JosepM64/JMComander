@@ -46,6 +46,11 @@ send2trash, rarfile, py7zr, paramiko, cryptography, bcrypt, mutagen, numpy, musi
 ```
 
 ## Últimes versions
+- **v6.9.26** (2026-10-04): Optimització d'arrancada
+  - `file_system_model.py`: icones cachejades per extensió via `DecorationRole` + `QStyle.standardIcon()`, elimina crides Win32 `SHGetFileInfo` per fitxer (~430ms al cProfile)
+  - `drive_combo.py`: paràmetre `include_iphone` per omitre detecció MTP al iniciar
+  - `panel.py`: detecció MTP diferida 300ms (`QTimer.singleShot`) al panell esquerre
+  - `main_window.py`: `_validate_startup_path()` no accepta paths shell inexistents (evita enumeració COM de "Aquest PC" si `config.json` té `left_path` d'iPhone no connectat)
 - **v6.9.25** (2026-10-04): Terminal WezTerm amb fallback a PowerShell
   - Nou `src/core/terminal.py` (detecció PATH + rutes + registre, `wezterm start --cwd`); acció `open_wezterm` a `actions.py` amb avís + fallback PowerShell
   - Toolbar (`toolbar_constants.py`, `config.py`, `main_window.py`), menú natiu (`native_menu.py`: "Terminal (WezTerm)" fitxers+fons), icona `mdi-wezterm.svg`, `hiddenimports` al `.spec`

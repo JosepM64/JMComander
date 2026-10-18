@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
-    QFileIconProvider,
     QFrame,
     QHBoxLayout,
     QHeaderView,
@@ -75,7 +74,7 @@ try:
 except ImportError:
     FolderTabBar = None
 
-from PySide6.QtGui import QAction, QCursor, QDesktopServices
+from PySide6.QtGui import QAction, QCursor, QDesktopServices, QIcon
 
 from src.core.archive_handler import archive_handler
 from src.core.directory_watcher import DirectoryWatcher
@@ -159,9 +158,22 @@ class FilePanel(QWidget):
         if DriveCombo:
             self.drive_combo = DriveCombo()
             self.drive_combo.drive_activated.connect(self.set_path)
-            self.drive_combo.update_drives(
-                self.current_path, force_refresh=self.detect_iphone_on_init
-            )
+            if self.detect_iphone_on_init:
+                # Sense iPhone al iniciar: evita enumeració COM lenta de "Aquest PC".
+                self.drive_combo.update_drives(
+                    self.current_path, force_refresh=False, include_iphone=False
+                )
+                # Afegir l'entrada iPhone diferit (300 ms) per no bloquejar l'arrancada.
+                QTimer.singleShot(
+                    300,
+                    lambda: self.drive_combo.update_drives(
+                        self.current_path, force_refresh=True, include_iphone=True
+                    ),
+                )
+            else:
+                self.drive_combo.update_drives(
+                    self.current_path, force_refresh=False, include_iphone=False
+                )
         else:
             self.drive_combo = QComboBox()
             self.drive_combo.setFixedWidth(80)
@@ -295,9 +307,12 @@ class FilePanel(QWidget):
             self.shell_browser.viewport().installEventFilter(self)
             self.shell_browser.installEventFilter(self)
 
-        self.icon_provider = QFileIconProvider()
-        self.folder_icon = self.icon_provider.icon(QFileIconProvider.IconType.Folder)
-        self.file_icon = self.icon_provider.icon(QFileIconProvider.IconType.File)
+        self.folder_icon = QIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon)
+        )
+        self.file_icon = QIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon)
+        )
 
         views = [self.tree, self.list, self.icon, self.archive_browser]
         if self.shell_browser:
@@ -312,7 +327,11 @@ class FilePanel(QWidget):
         logger.debug("=== FilePanel.setup_model START ===")
         _start_time = time.time()
 
-        self.source_model = ExtendedFileSystemModel()
+        self.source_model = ExtendedFileSystemModel(
+            parent=self,
+            folder_icon=self.folder_icon,
+            file_icon=self.file_icon,
+        )
         self.source_model.setReadOnly(False)
         self.source_model.directoryLoaded.connect(self._on_directory_loaded)
 
