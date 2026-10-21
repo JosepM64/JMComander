@@ -140,6 +140,16 @@ class PluginAPI:
         engine = OperationEngine.instance(self._mw)
         self._mw.run_operation(engine.queue_delete(paths), f"Eliminando {len(paths)} elementos")
 
+    def secure_delete(self, paths: list[str], method: str = "auto", passes: int = 3):
+        """Borrat segur: sobreescriu el contingut dels fitxers abans d'esborrar."""
+
+        engine = OperationEngine.instance(self._mw)
+        params = {"method": method, "passes": passes}
+        self._mw.run_operation(
+            engine.queue_secure_delete(paths, params),
+            f"Borrado seguro de {len(paths)} elementos",
+        )
+
     def refresh_panel(self):
         self._mw.active_panel.refresh()
 

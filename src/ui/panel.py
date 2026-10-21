@@ -48,6 +48,7 @@ from PySide6.QtWidgets import (
 from src.assets.icon_utils import load_icon
 from src.core.mtp_handler import get_shell_display_name, list_shell_folder, open_shell_file
 from src.ui.file_system_model import ExtendedFileSystemModel, FileSystemProxyModel
+from src.ui.thumbnails import get_thumbnail_provider
 
 try:
     from src.ui.components.breadcrumb_bar import BreadcrumbBar
@@ -83,12 +84,21 @@ from src.toolbar_constants import TOOLBAR_DEFAULT_TOOLTIPS
 
 logger = logging.getLogger(__name__)
 
+# Mida de les icones (en px) segons el mode de visualització.
+# "icons" / "icons_large" / "icons_xl" mostren miniatures reals de les imatges.
+ICON_SIZE_BY_MODE = {
+    "icons": 64,
+    "icons_large": 128,
+    "icons_xl": 224,
+}
+
 
 class FilePanel(QWidget):
     focused = Signal(object)
     selection_changed = Signal()
     path_changed = Signal(str)
     delete_requested = Signal()  # Nueva señal para borrar desde el menú
+    switch_panel_requested = Signal()  # Señal para cambiar al panel inactivo (tecla Tab)
 
     def __init__(self, panel_id, initial_path=None, detect_iphone_on_init=True):
         super().__init__()
@@ -279,7 +289,13 @@ class FilePanel(QWidget):
         self._setup_view(self.list)
         self._setup_view(self.icon)
         self.icon.setViewMode(QListView.ViewMode.IconMode)
-        self.icon.setIconSize(QSize(48, 48))
+        self.icon.setIconSize(QSize(ICON_SIZE_BY_MODE["icons"], ICON_SIZE_BY_MODE["icons"]))
+        # La vista d'icones ha de poder mostrar miniatures de mides diferents
+        self.icon.setUniformItemSizes(False)
+        self.icon.setWordWrap(True)
+        self.icon.setSpacing(6)
+        self.icon.setResizeMode(QListView.ResizeMode.Adjust)
+        self.icon.setLayoutMode(QListView.LayoutMode.SinglePass)
 
         if ArchiveBrowser:
             self.archive_browser = ArchiveBrowser()
@@ -335,6 +351,8 @@ class FilePanel(QWidget):
         )
         self.source_model.setReadOnly(False)
         self.source_model.directoryLoaded.connect(self._on_directory_loaded)
+        # Miniatures reals d'imatge per a les vistes d'icones (proveidor compartit)
+        self.source_model.set_thumbnail_provider(get_thumbnail_provider())
 
         self.proxy_model = FileSystemProxyModel(self)
         self.proxy_model.setSourceModel(self.source_model)
@@ -1211,14 +1229,24 @@ class FilePanel(QWidget):
             self.stack.setCurrentIndex(0)
             self.current_view_widget = self.tree
             self._configure_tree_headers()
+            self._set_thumbnails(0)
         elif m == "list":
             self.stack.setCurrentIndex(1)
             self.current_view_widget = self.list
+            self._set_thumbnails(0)
         else:
             self.stack.setCurrentIndex(2)
             self.current_view_widget = self.icon
-            self.icon.setIconSize(QSize(64, 64) if m == "icons_large" else QSize(48, 48))
+            size = ICON_SIZE_BY_MODE.get(m, ICON_SIZE_BY_MODE["icons"])
+            self.icon.setIconSize(QSize(size, size))
+            self._set_thumbnails(size)
         self.view_mode = m
+
+    def _set_thumbnails(self, size):
+        """Activa les miniatures d'imatge (size > 0) o les desactiva (size == 0)."""
+        self.source_model.set_thumbnail_size(size)
+        self.icon.viewport().update()
+        self.icon.doItemsLayout()
 
     def go_up(self):
         if archive_handler.is_inside_archive(self.current_path):
@@ -1480,6 +1508,10 @@ class FilePanel(QWidget):
                 # Hay un diálogo abierto, no interceptar
                 return super().eventFilter(obj, event)
 
+            # Tab: cambiar al panel inactivo (ver _handle_switch_panel_key)
+            if self._handle_switch_panel_key(event):
+                return True
+
             # Manejar tecla Enter como doble clic
             if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
                 current_view = self.current_view_widget
@@ -1500,6 +1532,28 @@ class FilePanel(QWidget):
                 return True
 
         return super().eventFilter(obj, event)
+
+    def _handle_switch_panel_key(self, event):
+        """Tab cambia al panel inactivo.
+
+        El QTreeView/QListView consume la tecla Tab para la navegación de foco,
+        así que MainWindow.keyPressEvent nunca la ve: hay que interceptarla aquí.
+        Devuelve True si la tecla se ha gestionado.
+        """
+        if event.key() != Qt.Key.Key_Tab or self.filter_input.isVisible():
+            return False
+        mods = event.modifiers()
+        # Con modificadores (Ctrl+Tab, Shift+Tab, Alt+Tab) no se cambia de panel,
+        # pero la tecla se consume igualmente para que no llegue al MainWindow
+        # (si llega, su keyPressEvent la interpretaría como un cambio de panel).
+        if mods & (
+            Qt.KeyboardModifier.ControlModifier
+            | Qt.KeyboardModifier.AltModifier
+            | Qt.KeyboardModifier.ShiftModifier
+        ):
+            return True
+        self.switch_panel_requested.emit()
+        return True
 
     def go_back(self):
         path = self._path_history.back()

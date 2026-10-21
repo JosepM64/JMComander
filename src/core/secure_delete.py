@@ -36,6 +36,8 @@ class SecureDelete:
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = 0  # SW_HIDE
+            # CREATE_NO_WINDOW evita que PowerShell cree una consola parpadeante
+            creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
 
             # Usar PowerShell para detectar tipo de disco
             try:
@@ -51,6 +53,7 @@ class SecureDelete:
                     text=True,
                     timeout=10,
                     startupinfo=startupinfo,
+                    creationflags=creationflags,
                 )
                 if "SSD" in result.stdout.upper():
                     _ssd_cache[drive] = True
@@ -73,6 +76,7 @@ class SecureDelete:
                     text=True,
                     timeout=10,
                     startupinfo=startupinfo,
+                    creationflags=creationflags,
                 )
                 model = result2.stdout.strip()
                 if "SSD" in model.upper() or "SOLID" in model.upper():

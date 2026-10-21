@@ -25,7 +25,7 @@ def _extract(path, dest, password=None):
     if ext in [".tar", ".gz", ".bz2"]:
         with tarfile.open(path, "r:*") as t:
             t.extractall(dest)
-            return True
+        return True
     return False
 
 
@@ -42,10 +42,6 @@ def _extract_with_password_prompt(path, dest, parent_window):
     if not ok:
         return False
     return _extract(path, dest, password)
-
-
-def register(api):
-    pass
 
 
 def run_extractor(api):
@@ -73,10 +69,12 @@ def run_extractor(api):
         return
 
     parent = api.get_parent_window()
-    progress = QProgressDialog("Extrayendo archivos...", "Cancelar", 0, len(archives), parent)
+    archives_count = len(archives)
+    progress = QProgressDialog("Extrayendo archivos...", "Cancelar", 0, archives_count, parent)
     progress.setWindowTitle("Extractor Multi-formato")
     progress.setWindowModality(Qt.WindowModality.WindowModal)
     progress.setMinimumDuration(500)
+    progress.setValue(0)
 
     count = 0
     for i, archive_path in enumerate(archives):
@@ -87,7 +85,7 @@ def run_extractor(api):
             return
         try:
             dest = api.active_panel.current_path
-            if opt == opts[1]:
+            if opt == "Extraer en carpetas separadas":
                 folder_name = os.path.splitext(os.path.basename(archive_path))[0]
                 dest = os.path.join(dest, folder_name)
                 os.makedirs(dest, exist_ok=True)
@@ -96,6 +94,7 @@ def run_extractor(api):
         except Exception as e:
             logger.debug("Error extrayendo %s: %s", archive_path, e)
 
-    progress.setValue(len(archives))
+    progress.setValue(archives_count)
+    progress.close()
     QMessageBox.information(parent, "Completado", f"Se han extraído {count} archivos con éxito.")
     api.active_panel.refresh()

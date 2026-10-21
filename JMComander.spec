@@ -135,7 +135,6 @@ a = Analysis(
     # UI modules (necessaris per PyInstaller)
     'src.ui.panel',
     'src.ui.main_window',
-    'src.ui.progress_dialog',
     'src.ui.conflict_dialog',
     'src.ui.search_dialog',
     'src.ui.settings_dialog',
@@ -164,6 +163,9 @@ a = Analysis(
     'src.assets.icon_utils',
     # Plugins que carreguen dinàmicament (PyInstaller no els detecta)
     'src.core.plugin_settings',
+    'src.core.credential_store',
+    'src.core.archive_handler',
+    'src.core.fs_utils',
     # Remote plugin
     'ftplib',
 ],

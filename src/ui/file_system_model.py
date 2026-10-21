@@ -8,56 +8,73 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QFileSystemModel, QStyle
 
 from src.core.file_constants import get_extension, get_file_category, get_file_type_display
+from src.ui.thumbnails import is_image_file
 
 logger = logging.getLogger(__name__)
+
+
+def _pixmap(name: str) -> QStyle.StandardPixmap:
+    """Resol un StandardPixmap de manera tolerant (els noms canvien entre versions de Qt)."""
+    value = getattr(QStyle.StandardPixmap, name, None)
+    if value is None:
+        logger.warning("StandardPixmap '%s' no disponible; s'usa SP_FileIcon", name)
+        value = QStyle.StandardPixmap.SP_FileIcon
+    return value
+
+
+# Mapa extensió -> icona. Es construeix una sola vegada (a import) per evitar
+# reconstruir el dict a cada fitxer visible.
+_ICON_BY_EXT = {
+    ".jpg": _pixmap("SP_FileDialogContentsView"),
+    ".jpeg": _pixmap("SP_FileDialogContentsView"),
+    ".png": _pixmap("SP_FileDialogContentsView"),
+    ".gif": _pixmap("SP_FileDialogContentsView"),
+    ".bmp": _pixmap("SP_FileDialogContentsView"),
+    ".webp": _pixmap("SP_FileDialogContentsView"),
+    ".heic": _pixmap("SP_FileDialogContentsView"),
+    ".mp4": _pixmap("SP_MediaVolume"),
+    ".mkv": _pixmap("SP_MediaVolume"),
+    ".avi": _pixmap("SP_MediaVolume"),
+    ".mov": _pixmap("SP_MediaVolume"),
+    ".mp3": _pixmap("SP_MediaPlay"),
+    ".wav": _pixmap("SP_MediaPlay"),
+    ".flac": _pixmap("SP_MediaPlay"),
+    ".aac": _pixmap("SP_MediaPlay"),
+    ".zip": _pixmap("SP_FileDialogStart"),
+    ".rar": _pixmap("SP_FileDialogStart"),
+    ".7z": _pixmap("SP_FileDialogStart"),
+    ".gz": _pixmap("SP_FileDialogStart"),
+    ".tar": _pixmap("SP_FileDialogStart"),
+    ".pdf": _pixmap("SP_FileDialogDetailedView"),
+    ".doc": _pixmap("SP_FileDialogDetailedView"),
+    ".docx": _pixmap("SP_FileDialogDetailedView"),
+    ".xls": _pixmap("SP_FileDialogDetailedView"),
+    ".xlsx": _pixmap("SP_FileDialogDetailedView"),
+    ".ppt": _pixmap("SP_FileDialogDetailedView"),
+    ".pptx": _pixmap("SP_FileDialogDetailedView"),
+    ".txt": _pixmap("SP_FileDialogDetailedView"),
+    ".log": _pixmap("SP_FileDialogDetailedView"),
+    ".md": _pixmap("SP_FileDialogDetailedView"),
+    ".exe": _pixmap("SP_ComputerIcon"),
+    ".msi": _pixmap("SP_ComputerIcon"),
+    ".bat": _pixmap("SP_ComputerIcon"),
+    ".cmd": _pixmap("SP_ComputerIcon"),
+    ".py": _pixmap("SP_FileIcon"),
+    ".js": _pixmap("SP_FileIcon"),
+    ".ts": _pixmap("SP_FileIcon"),
+    ".html": _pixmap("SP_FileIcon"),
+    ".css": _pixmap("SP_FileIcon"),
+    ".json": _pixmap("SP_FileIcon"),
+    ".xml": _pixmap("SP_FileIcon"),
+}
+
+_DEFAULT_FILE_PIXMAP = QStyle.StandardPixmap.SP_FileIcon
 
 
 def _icon_for_ext(ext: str) -> QIcon:
     """Retorna una icone estàtica per extensió (sense crides Win32)."""
     style = QApplication.instance().style()
-    category = {
-        ".jpg": QStyle.StandardPixmap.SP_FileDialogContents,
-        ".jpeg": QStyle.StandardPixmap.SP_FileDialogContents,
-        ".png": QStyle.StandardPixmap.SP_FileDialogContents,
-        ".gif": QStyle.StandardPixmap.SP_FileDialogContents,
-        ".bmp": QStyle.StandardPixmap.SP_FileDialogContents,
-        ".webp": QStyle.StandardPixmap.SP_FileDialogContents,
-        ".heic": QStyle.StandardPixmap.SP_FileDialogContents,
-        ".mp4": QStyle.StandardPixmap.SP_MediaVolume,
-        ".mkv": QStyle.StandardPixmap.SP_MediaVolume,
-        ".avi": QStyle.StandardPixmap.SP_MediaVolume,
-        ".mov": QStyle.StandardPixmap.SP_MediaVolume,
-        ".mp3": QStyle.StandardPixmap.SP_MediaPlaylist,
-        ".wav": QStyle.StandardPixmap.SP_MediaPlaylist,
-        ".flac": QStyle.StandardPixmap.SP_MediaPlaylist,
-        ".aac": QStyle.StandardPixmap.SP_MediaPlaylist,
-        ".zip": QStyle.StandardPixmap.SP_FileDialogStart,
-        ".rar": QStyle.StandardPixmap.SP_FileDialogStart,
-        ".7z": QStyle.StandardPixmap.SP_FileDialogStart,
-        ".gz": QStyle.StandardPixmap.SP_FileDialogStart,
-        ".tar": QStyle.StandardPixmap.SP_FileDialogStart,
-        ".pdf": QStyle.StandardPixmap.SP_FileDialogDetailedView,
-        ".doc": QStyle.StandardPixmap.SP_FileDialogDetailedView,
-        ".docx": QStyle.StandardPixmap.SP_FileDialogDetailedView,
-        ".xls": QStyle.StandardPixmap.SP_FileDialogDetailedView,
-        ".xlsx": QStyle.StandardPixmap.SP_FileDialogDetailedView,
-        ".ppt": QStyle.StandardPixmap.SP_FileDialogDetailedView,
-        ".pptx": QStyle.StandardPixmap.SP_FileDialogDetailedView,
-        ".txt": QStyle.StandardPixmap.SP_FileDialogDetailedView,
-        ".log": QStyle.StandardPixmap.SP_FileDialogDetailedView,
-        ".md": QStyle.StandardPixmap.SP_FileDialogDetailedView,
-        ".exe": QStyle.StandardPixmap.SP_ComputerIcon,
-        ".msi": QStyle.StandardPixmap.SP_ComputerIcon,
-        ".bat": QStyle.StandardPixmap.SP_ComputerIcon,
-        ".cmd": QStyle.StandardPixmap.SP_ComputerIcon,
-        ".py": QStyle.StandardPixmap.SP_FileIcon,
-        ".js": QStyle.StandardPixmap.SP_FileIcon,
-        ".ts": QStyle.StandardPixmap.SP_FileIcon,
-        ".html": QStyle.StandardPixmap.SP_FileIcon,
-        ".css": QStyle.StandardPixmap.SP_FileIcon,
-        ".json": QStyle.StandardPixmap.SP_FileIcon,
-        ".xml": QStyle.StandardPixmap.SP_FileIcon,
-    }.get(ext, QStyle.StandardPixmap.SP_FileIcon)
+    category = _ICON_BY_EXT.get(ext, _DEFAULT_FILE_PIXMAP)
     return QIcon(style.standardIcon(category))
 
 
@@ -75,11 +92,60 @@ class ExtendedFileSystemModel(QFileSystemModel):
         self._icon_cache = {}   # ext_lower -> QIcon
         self._folder_icon = folder_icon
         self._file_icon = file_icon
+        self._thumbnail_provider = None
+        self._thumbnail_size = 0
         self.directoryLoaded.connect(self._on_directory_loaded)
 
     def _on_directory_loaded(self, path):  # noqa: ARG002
         self._size_cache.clear()
         self._mtime_cache.clear()
+
+    # ------------------------------------------------------------- miniatures
+    def set_thumbnail_provider(self, provider):
+        """Connecta el proveidor de miniatures (compartit per tots els panells)."""
+        if provider is self._thumbnail_provider:
+            return
+        self._thumbnail_provider = provider
+        if provider is not None:
+            provider.thumbnail_ready.connect(self._on_thumbnail_ready)
+
+    def set_thumbnail_size(self, size):
+        """Activa (size > 0) o desactiva (size == 0) les miniatures d'imatge."""
+        try:
+            size = max(0, int(size))
+        except (TypeError, ValueError):
+            size = 0
+        if size == self._thumbnail_size:
+            return
+        self._thumbnail_size = size
+        self._refresh_decorations()
+
+    def _refresh_decorations(self):
+        """Avisa la vista que han canviat les icones de tot el directori actual."""
+        root = self.index(self.rootPath())
+        if not root.isValid():
+            return
+        count = self.rowCount(root)
+        if count <= 0:
+            return
+        top = self.index(0, 0, root)
+        bottom = self.index(count - 1, 0, root)
+        if top.isValid() and bottom.isValid():
+            self.dataChanged.emit(top, bottom, [Qt.ItemDataRole.DecorationRole])
+
+    def _on_thumbnail_ready(self, path, size):
+        """Slot: arriba una miniatura -> es desa al cache i es refresca la fila."""
+        provider = self._thumbnail_provider
+        if provider is None:
+            return
+        image = provider.take_image(path, size)
+        if image is None:
+            # Decodificacio fallida: el proveidor ho recorda i no ho reintenta.
+            return
+        provider.store(path, size, image)
+        index = self.index(path)
+        if index.isValid():
+            self.dataChanged.emit(index, index, [Qt.ItemDataRole.DecorationRole])
 
     def columnCount(self, _parent=QModelIndex()):  # noqa: N802
         return 6
@@ -102,9 +168,24 @@ class ExtendedFileSystemModel(QFileSystemModel):
                     if self._folder_icon is not None:
                         return self._folder_icon
                 else:
+                    # Miniatura real de la imatge (vistes d'icones). Si encara no
+                    # esta llesta es mostra la icona estatica de l'extensio.
+                    if (
+                        self._thumbnail_size > 0
+                        and self._thumbnail_provider is not None
+                        and is_image_file(file_path)
+                    ):
+                        pixmap = self._thumbnail_provider.pixmap(file_path, self._thumbnail_size)
+                        if pixmap is not None:
+                            return QIcon(pixmap)
                     ext = os.path.splitext(file_path)[1].lower()
                     if ext not in self._icon_cache:
-                        self._icon_cache[ext] = _icon_for_ext(ext)
+                        try:
+                            self._icon_cache[ext] = _icon_for_ext(ext)
+                        except Exception as e:  # noqa: BLE001
+                            # Una icona que falla mai ha de trencar el model
+                            logger.warning("Icona per a '%s' no disponible: %s", ext, e)
+                            self._icon_cache[ext] = QIcon()
                     return self._icon_cache[ext]
             if self._file_icon is not None:
                 return self._file_icon

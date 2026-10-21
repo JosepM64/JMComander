@@ -181,6 +181,9 @@ except Exception as e:
     logger.exception(traceback.format_exc())
     sys.exit(1)
 
+# Filtro global de teclado (definido a nivel de módulo para poder testearlo)
+from PySide6.QtCore import QEvent, QObject, Qt  # noqa: E402
+
 
 def check_single_instance():
     """Implementa única instancia. Retorna True si es la primera instancia, False si ya hay otra."""
@@ -259,6 +262,105 @@ def check_single_instance():
         return True
 
 
+class GlobalKeyFilter(QObject):
+    """Filtro global de teclado: captura teclas sueltas para el filtro rápido.
+
+    IMPORTANTE: si hay modificadores pulsados (Ctrl/Alt/Meta) NO se intercepta
+    nada, para que los atajos como Ctrl+A (seleccionar todo), Ctrl+C, Ctrl+G o
+    Ctrl+Shift+C sigan funcionando. El filtro rápido solo usa teclas sueltas.
+    """
+
+    def __init__(self, main_window, parent=None):
+        super().__init__(parent)
+        self.main_window = main_window
+
+    def eventFilter(self, obj, event):
+        if event.type() != QEvent.Type.KeyPress:
+            return False
+
+        logger.debug(
+            f"GlobalKeyFilter: key press text='{event.text()}', key={event.key()}, obj={obj}"
+        )
+
+        # Si hay un diálogo o ventana diferente abierta, no interceptar
+        app = QApplication.instance()
+        active_window = app.activeWindow() if app else None
+        if active_window and active_window != self.main_window:
+            logger.debug(
+                f"Active window is different window ({type(active_window).__name__}), skipping"
+            )
+            return False
+
+        active_panel = self.main_window.active_panel
+        if not active_panel:
+            logger.debug("No active panel")
+            return False
+
+        # Si el foco está en path_input del panel activo, no interceptar
+        if active_panel.path_input.hasFocus():
+            logger.debug("Focus in path_input, skipping")
+            return False
+
+        # Si el foco está en filter_input, solo manejar ESC
+        if active_panel.filter_input.hasFocus():
+            logger.debug(f"Focus in filter_input, key={event.key()}")
+            if event.key() == Qt.Key.Key_Escape:
+                logger.debug("ESC pressed in filter_input")
+                active_panel.filter_input.clear()
+                active_panel.filter_input.hide()
+                active_panel.current_view_widget.setFocus()
+                return True
+            return False
+
+        # Modificadores pulsados: NO interceptar (deja pasar los atajos)
+        if event.modifiers() & (
+            Qt.KeyboardModifier.ControlModifier
+            | Qt.KeyboardModifier.AltModifier
+            | Qt.KeyboardModifier.MetaModifier
+        ):
+            return False
+
+        # Capturar '+' para selección por patrón
+        if event.text() == "+":
+            logger.info("+ pressed, triggering pattern selection")
+            active_panel._trigger_pattern_selection(True)
+            logger.info("Pattern selection completed")
+            return True
+
+        # Capturar '-' para deselección por patrón
+        if event.text() == "-":
+            logger.info("- pressed, triggering pattern deselection")
+            active_panel._trigger_pattern_selection(False)
+            logger.info("Pattern deselection completed")
+            return True
+
+        # Capturar teclas alfanuméricas para filtro rápido
+        if len(event.text()) == 1 and event.text().isalnum():
+            # Si el filter_input no está visible, mostrarlo y establecer el texto
+            if not active_panel.filter_input.isVisible():
+                logger.debug(
+                    f"Alpha key '{event.text()}', filter_input not visible, showing"
+                )
+                active_panel.filter_input.show()
+                active_panel.filter_input.setText(event.text())
+                active_panel.filter_input.setFocus()
+                return True
+            # Si filter_input visible pero sin foco, poner foco y añadir
+            if not active_panel.filter_input.hasFocus():
+                logger.debug(
+                    f"Alpha key '{event.text()}',"
+                    " filter_input visible but not focused, appending"
+                )
+                active_panel.filter_input.setFocus()
+                current_text = active_panel.filter_input.text()
+                active_panel.filter_input.setText(current_text + event.text())
+                return True
+            # Si filter_input visible y con foco, Qt maneja la tecla
+            logger.debug(f"Alpha key '{event.text()}', filter_input focused, passing through")
+
+        return False
+
+
 def main():
     try:
         # Verificar instancia única antes de continuar
@@ -308,94 +410,6 @@ def main():
         logger.info("[OK] MainWindow created")
 
         # Instalar eventFilter global para capturar teclas de filtro rápido
-        from PySide6.QtCore import QEvent, QObject
-
-        class GlobalKeyFilter(QObject):
-            def __init__(self, main_window, parent=None):
-                super().__init__(parent)
-                self.main_window = main_window
-
-            def eventFilter(self, obj, event):
-                if event.type() == QEvent.Type.KeyPress:
-                    logger.debug(
-                        f"GlobalKeyFilter: key press text='{event.text()}',"
-                        f" key={event.key()}, obj={obj}"
-                    )
-                    # Verificar si hay un diálogo modal abierto
-                    active_window = app.activeWindow()
-                    if active_window and active_window != self.main_window:
-                        # Hay un diálogo o ventana diferente abierta, no interceptar
-                        logger.debug(
-                            f"Active window is different window"
-                            f" ({type(active_window).__name__}), skipping"
-                        )
-                        return False
-
-                    # Obtener el panel activo
-                    active_panel = self.main_window.active_panel
-                    if not active_panel:
-                        logger.debug("No active panel")
-                        return False
-
-                    # Si el foco está en path_input del panel activo, no interceptar
-                    if active_panel.path_input.hasFocus():
-                        logger.debug("Focus in path_input, skipping")
-                        return False
-
-                    # Si el foco está en filter_input, solo manejar ESC
-                    if active_panel.filter_input.hasFocus():
-                        logger.debug(f"Focus in filter_input, key={event.key()}")
-                        if event.key() == 16777216:  # Qt.Key.Key_Escape
-                            logger.debug("ESC pressed in filter_input")
-                            active_panel.filter_input.clear()
-                            active_panel.filter_input.hide()
-                            active_panel.current_view_widget.setFocus()
-                            return True
-                        return False
-
-                    # Capturar '+' para selección por patrón
-                    if event.text() == "+":
-                        logger.info("+ pressed, triggering pattern selection")
-                        active_panel._trigger_pattern_selection(True)
-                        logger.info("Pattern selection completed")
-                        return True
-
-                    # Capturar '-' para deselección por patrón
-                    if event.text() == "-":
-                        logger.info("- pressed, triggering pattern deselection")
-                        active_panel._trigger_pattern_selection(False)
-                        logger.info("Pattern deselection completed")
-                        return True
-
-                    # Capturar teclas alfanuméricas para filtro rápido
-                    if len(event.text()) == 1 and event.text().isalnum():
-                        # Si el filter_input no está visible, mostrarlo y establecer el texto
-                        if not active_panel.filter_input.isVisible():
-                            logger.debug(
-                                f"Alpha key '{event.text()}', filter_input not visible, showing"
-                            )
-                            active_panel.filter_input.show()
-                            active_panel.filter_input.setText(event.text())
-                            active_panel.filter_input.setFocus()
-                            return True
-                        # Si filter_input visible pero sin foco, poner foco y añadir
-                        if not active_panel.filter_input.hasFocus():
-                            logger.debug(
-                                f"Alpha key '{event.text()}',"
-                                " filter_input visible but not focused, appending"
-                            )
-                            active_panel.filter_input.setFocus()
-                            current_text = active_panel.filter_input.text()
-                            active_panel.filter_input.setText(current_text + event.text())
-                            return True
-                        # Si filter_input visible y con foco, Qt maneja la tecla
-                        logger.debug(
-                            f"Alpha key '{event.text()}', filter_input focused, passing through"
-                        )
-                        return False
-
-                return False
-
         global_filter = GlobalKeyFilter(window)
         app.installEventFilter(global_filter)
         logger.info("[OK] Global key filter installed")

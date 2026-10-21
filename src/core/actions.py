@@ -17,7 +17,7 @@ from enum import Enum
 
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QInputDialog, QMessageBox
+from PySide6.QtWidgets import QDialog, QInputDialog, QMessageBox
 
 from src.core.fs_utils import get_locked_paths
 from src.core.terminal import open_wezterm
@@ -101,8 +101,41 @@ def _is_shell_path(p):
     return str(p).startswith("::") or "\\SID-" in str(p) or "shell::" in str(p).lower()
 
 
+def _no_selection(ctx: ActionContext, title: str):
+    """Avisa l'usuari enlloc de no fer res (F5/F6 no semblaven funcionar)."""
+    QMessageBox.information(
+        ctx.parent,
+        title,
+        "No hay elementos seleccionados.\n\n"
+        "Selecciona uno o varios elementos en el panel activo y vuelve a intentarlo.",
+    )
+
+
+def _confirm_delete_enabled(ctx: ActionContext) -> bool:
+    """Indica si cal demanar confirmació abans d'eliminar (opció de configuració).
+
+    Si no hi ha configuració accessible (per exemple en proves), es confirma
+    sempre per seguretat: es prefereix un diàleg de més a una eliminació
+    accidental.
+    """
+    config = getattr(ctx.parent, "config", None)
+    if config is None:
+        return True
+    getter = getattr(config, "get_confirm_delete", None)
+    if getter is None:
+        return True
+    try:
+        return bool(getter())
+    except Exception:
+        logger.warning("No s'ha pogut llegir confirm_delete de la configuració", exc_info=True)
+        return True
+
+
 def _copy_files(ctx: ActionContext):
     s = ctx.active_panel.get_selected_paths()
+    if not s:
+        _no_selection(ctx, "Copiar")
+        return
     d = ctx.inactive_panel.current_path
     if (
         s
@@ -124,6 +157,9 @@ def _copy_files(ctx: ActionContext):
 
 def _move_files(ctx: ActionContext):
     s = ctx.active_panel.get_selected_paths()
+    if not s:
+        _no_selection(ctx, "Mover")
+        return
     d = ctx.inactive_panel.current_path
     if (
         s
@@ -146,6 +182,7 @@ def _move_files(ctx: ActionContext):
 def _delete_files(ctx: ActionContext):
     s = ctx.active_panel.get_selected_paths()
     if not s:
+        _no_selection(ctx, "Eliminar")
         return
     locked = get_locked_paths(s)
     if locked:
@@ -158,14 +195,40 @@ def _delete_files(ctx: ActionContext):
         msg += "\n\nCierra los programas que los estén usando e intenta de nuevo."
         QMessageBox.warning(ctx.parent, "Archivo en uso", msg)
         return
-    reply = QMessageBox.question(
-        ctx.parent,
-        "Eliminar",
-        f"¿Eliminar {len(s)} elementos?",
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-    )
+    reply = QMessageBox.StandardButton.Yes
+    if _confirm_delete_enabled(ctx):
+        reply = QMessageBox.question(
+            ctx.parent,
+            "Eliminar",
+            f"¿Eliminar {len(s)} elementos?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
     if reply == QMessageBox.StandardButton.Yes and ctx.run_operation:
         ctx.run_operation(ctx.engine.queue_delete(s, True), "Eliminando")
+
+
+def _secure_delete(ctx: ActionContext):
+    """Borrat segur: sobreescriu el contingut abans de suprimir els elements.
+
+    Reutilitza el motor d'operacions (SecureDeleteJob) perquè el procés
+    llarg es mostri amb la barra de progrés i es pugui cancel·lar.
+    """
+    s = ctx.active_panel.get_selected_paths()
+    if not s:
+        _no_selection(ctx, "Borrado seguro")
+        return
+
+    from src.ui.dialogs.secure_delete_dialog import SecureDeleteDialog  # noqa: PLC0415
+
+    dialog = SecureDeleteDialog(ctx.parent, s)
+    if dialog.exec() != QDialog.DialogCode.Accepted:
+        return
+
+    params = dialog.params()
+    if ctx.run_operation:
+        job = ctx.engine.queue_secure_delete(s, params)
+        job.signals.finished.connect(ctx.active_panel.refresh)
+        ctx.run_operation(job, "Borrado seguro")
 
 
 def _create_folder(ctx: ActionContext):
@@ -181,6 +244,9 @@ def _create_folder(ctx: ActionContext):
 
 
 def _duplicate_selected(ctx: ActionContext):
+    if not ctx.active_panel.get_selected_paths():
+        _no_selection(ctx, "Duplicar")
+        return
     ctx.active_panel.duplicate_selected()
 
 
@@ -246,13 +312,19 @@ def _add_current_to_bookmarks(ctx: ActionContext):
 
 def _view_file(ctx: ActionContext):
     s = ctx.active_panel.get_selected_paths()
-    if s and os.path.isfile(s[0]):
+    if not s:
+        _no_selection(ctx, "Ver")
+        return
+    if os.path.isfile(s[0]):
         QDesktopServices.openUrl(QUrl.fromLocalFile(s[0]))
 
 
 def _edit_file(ctx: ActionContext):
     s = ctx.active_panel.get_selected_paths()
-    if s and os.path.isfile(s[0]):
+    if not s:
+        _no_selection(ctx, "Editar")
+        return
+    if os.path.isfile(s[0]):
         subprocess.Popen(["notepad.exe", s[0]])
 
 
@@ -260,6 +332,83 @@ def _show_about(ctx: ActionContext):
     # El diàleg About viu a MainWindow — abans l'acció no tenia handler i no feia res
     if hasattr(ctx.parent, "show_about_dialog"):
         ctx.parent.show_about_dialog()
+
+
+# === Handlers que abans eren "orfes" (declarats al registre però sense handler) ===
+
+
+def _copy_path(ctx: ActionContext):
+    """Copia la ruta del fitxer seleccionat al porta-retalls."""
+    ctx.active_panel.copy_path_to_clipboard()
+
+
+def _exit_app(ctx: ActionContext):
+    """Tanca l'aplicació (equivalent a Alt+F4)."""
+    if ctx.parent is not None:
+        ctx.parent.close()
+
+
+def _rename(ctx: ActionContext):
+    """Reanomena l'element seleccionat (F2)."""
+    if not ctx.active_panel.get_selected_paths():
+        _no_selection(ctx, "Renombrar")
+        return
+    ctx.active_panel.rename_selected_item()
+
+
+def _select_all(ctx: ActionContext):
+    """Selecciona tots els elements del panell actiu (Ctrl+A)."""
+    ctx.active_panel.select_all()
+
+
+def _invert_selection(ctx: ActionContext):
+    """Inverteix la selecció del panell actiu (Ctrl+I)."""
+    ctx.active_panel.invert_selection()
+
+
+def _deselect_all(ctx: ActionContext):
+    """Deselecciona tot (Ctrl+Shift+A)."""
+    ctx.active_panel.clear_selection()
+
+
+def _refresh(ctx: ActionContext):
+    """Refresca el panell actiu (Ctrl+R)."""
+    ctx.active_panel.refresh()
+
+
+def _switch_panel(ctx: ActionContext):
+    """Canvia al panell inactiu (Tab)."""
+    if ctx.parent is not None:
+        ctx.parent.set_active_panel(ctx.inactive_panel)
+
+
+def _go_up(ctx: ActionContext):
+    """Puja un nivell al panell actiu (Retrocés / Backspace)."""
+    ctx.active_panel.go_up()
+
+
+def _sync_dirs(ctx: ActionContext):
+    """Obre el diàleg de sincronització de directoris."""
+    if ctx.parent is not None and hasattr(ctx.parent, "open_sync_dirs_dialog"):
+        ctx.parent.open_sync_dirs_dialog()
+
+
+def _search(ctx: ActionContext):
+    """Obre el diàleg de cerca de fitxers (Alt+F7)."""
+    if ctx.parent is not None and hasattr(ctx.parent, "open_search_files_dialog"):
+        ctx.parent.open_search_files_dialog()
+
+
+def _edit_bookmarks(ctx: ActionContext):
+    """Obre el gestor de marcadors."""
+    if ctx.parent is not None and hasattr(ctx.parent, "open_bookmarks_editor"):
+        ctx.parent.open_bookmarks_editor()
+
+
+def _quick_look(ctx: ActionContext):
+    """Mostra/amaga la previsualització ràpida (F3)."""
+    if ctx.parent is not None and hasattr(ctx.parent, "toggle_quick_look"):
+        ctx.parent.toggle_quick_look()
 
 
 # === Handlers per a plugins ===
@@ -282,7 +431,7 @@ def register_core_actions():
             id="new_folder",
             name="Nueva carpeta",
             icon="mdi-folder-plus",
-            shortcut="Ctrl+N",
+            shortcut="F7",
             category=ActionCategory.FILE.value,
             order=1,
             handler=_create_folder,
@@ -326,6 +475,7 @@ def register_core_actions():
             shortcut="Ctrl+Shift+C",
             category=ActionCategory.FILE.value,
             order=5,
+            handler=_copy_path,
         )
     )
     action_registry.register(
@@ -336,6 +486,7 @@ def register_core_actions():
             shortcut="Alt+F4",
             category=ActionCategory.FILE.value,
             order=99,
+            handler=_exit_app,
         )
     )
     action_registry.register(
@@ -346,6 +497,7 @@ def register_core_actions():
             shortcut="F2",
             category=ActionCategory.EDIT.value,
             order=1,
+            handler=_rename,
         )
     )
     action_registry.register(
@@ -375,7 +527,7 @@ def register_core_actions():
             id="duplicate",
             name="Duplicar",
             icon="mdi-content-duplicate",
-            shortcut="Ctrl+D",
+            shortcut="F9",
             category=ActionCategory.EDIT.value,
             order=4,
             handler=_duplicate_selected,
@@ -394,6 +546,17 @@ def register_core_actions():
     )
     action_registry.register(
         Action(
+            id="secure_delete",
+            name="Borrado seguro",
+            icon="mdi-lock",
+            shortcut="Ctrl+Shift+Del",
+            category=ActionCategory.EDIT.value,
+            order=6,
+            handler=_secure_delete,
+        )
+    )
+    action_registry.register(
+        Action(
             id="goto",
             name="Ir a...",
             icon="mdi-folder-open",
@@ -408,10 +571,21 @@ def register_core_actions():
             id="view_file",
             name="Ver archivo",
             icon="mdi-eye",
-            shortcut="F3",
+            # F3 NO és d'aquesta acció: F3 és el Quick Look (veure quick_look).
             category=ActionCategory.VIEW.value,
             order=1,
             handler=_view_file,
+        )
+    )
+    action_registry.register(
+        Action(
+            id="quick_look",
+            name="Quick Look",
+            icon="mdi-eye-outline",
+            shortcut="F3",
+            category=ActionCategory.VIEW.value,
+            order=3,
+            handler=_quick_look,
         )
     )
     action_registry.register(
@@ -433,6 +607,7 @@ def register_core_actions():
             shortcut="Ctrl+A",
             category=ActionCategory.SELECT.value,
             order=1,
+            handler=_select_all,
         )
     )
     action_registry.register(
@@ -443,6 +618,7 @@ def register_core_actions():
             shortcut="Ctrl+I",
             category=ActionCategory.SELECT.value,
             order=2,
+            handler=_invert_selection,
         )
     )
     action_registry.register(
@@ -450,9 +626,10 @@ def register_core_actions():
             id="deselect_all",
             name="Deseleccionar todo",
             icon="mdi-selection-off",
-            shortcut="Ctrl+U",
+            shortcut="Ctrl+Shift+A",
             category=ActionCategory.SELECT.value,
             order=3,
+            handler=_deselect_all,
         )
     )
     action_registry.register(
@@ -463,6 +640,7 @@ def register_core_actions():
             shortcut="Ctrl+R",
             category=ActionCategory.PANELS.value,
             order=1,
+            handler=_refresh,
         )
     )
     action_registry.register(
@@ -473,6 +651,7 @@ def register_core_actions():
             shortcut="Tab",
             category=ActionCategory.PANELS.value,
             order=2,
+            handler=_switch_panel,
         )
     )
     action_registry.register(
@@ -483,6 +662,7 @@ def register_core_actions():
             shortcut="Backspace",
             category=ActionCategory.PANELS.value,
             order=3,
+            handler=_go_up,
         )
     )
     action_registry.register(
@@ -497,11 +677,12 @@ def register_core_actions():
     )
     action_registry.register(
         Action(
-            id="sync_panels",
-            name="Sincronizar paneles",
+            id="sync_dirs",
+            name="Sincronizar directorios",
             icon="mdi-sync",
             category=ActionCategory.PANELS.value,
             order=4,
+            handler=_sync_dirs,
         )
     )
     action_registry.register(
@@ -541,6 +722,7 @@ def register_core_actions():
             shortcut="Alt+F7",
             category=ActionCategory.PLUGINS.value,
             order=4,
+            handler=_search,
         )
     )
     action_registry.register(
@@ -560,6 +742,7 @@ def register_core_actions():
             icon="mdi-star",
             category=ActionCategory.PLUGINS.value,
             order=5,
+            handler=_edit_bookmarks,
         )
     )
     action_registry.register(

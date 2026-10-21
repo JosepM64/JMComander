@@ -141,6 +141,9 @@ class MainWindow(QMainWindow):
         self._main_layout = QVBoxLayout(central_widget)
         self._main_layout.setContentsMargins(0, 0, 0, 0)
         self._main_layout.setSpacing(0)
+        # Alçada mínima: barra d'eines + panells + barra de funcions (F2..F9)
+        # + barra d'estat. Evita que el contingut es talli pel baix.
+        self.setMinimumHeight(340)
 
     def _validate_startup_path(self, path):
         if path and os.path.exists(path):
@@ -188,12 +191,21 @@ class MainWindow(QMainWindow):
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 1)
         self.splitter.setHandleWidth(4)
+        # Alçada mínima baixa i explícita: el splitter pot heretar una
+        # minimumSizeHint gran del panell i, aleshores, la barra de funcions
+        # (F2..F9) quedava fora de la finestra.
+        self.splitter.setMinimumHeight(120)
         self._main_layout.addWidget(self.splitter, 1)
 
         QTimer.singleShot(0, self._init_splitter_sizes)
 
         self.active_panel = self.left_panel
         self.inactive_panel = self.right_panel
+
+        # Mode de visualització desat (amb miniatures si és un mode d'icones)
+        self.view_mode = self.config.get_view_mode()
+        for panel in (self.left_panel, self.right_panel):
+            panel.set_view_mode(self.view_mode)
 
     def _init_background_progress(self):
         self.bg_progress_frame = QFrame()
@@ -270,6 +282,7 @@ class MainWindow(QMainWindow):
             p.path_changed.connect(self._on_path_changed)
             p.selection_changed.connect(lambda p_ref=p: self._on_selection_changed(p_ref))
             p.delete_requested.connect(self.delete_files)
+            p.switch_panel_requested.connect(lambda p_ref=p: self._switch_to_inactive_panel(p_ref))
             if p.current_path:
                 self.config.add_recent_path(p.current_path)
 
@@ -278,10 +291,17 @@ class MainWindow(QMainWindow):
         if hasattr(self, "btn_recent_paths"):
             self.btn_recent_paths.pressed.connect(self.update_recent_paths_menu)
 
+    def _switch_to_inactive_panel(self, panel=None):
+        """Canvia al panell inactiu (tecla Tab). Si s'indica el panell emissor,
+        només commuta si és el panell actiu (evita un ping-pong)."""
+        if panel is not None and panel is not self.active_panel:
+            return
+        self.set_active_panel(self.inactive_panel)
+
     def _init_quicklook_shortcut(self):
         self.action_toggle_quicklook = QAction("Quick Look", self)
         self.action_toggle_quicklook.setShortcut("F3")
-        self.action_toggle_quicklook.triggered.connect(self._toggle_quick_look)
+        self.action_toggle_quicklook.triggered.connect(self.toggle_quick_look)
         self.addAction(self.action_toggle_quicklook)
 
     def _startup_refresh(self):
@@ -341,7 +361,7 @@ class MainWindow(QMainWindow):
         add_act("close_tab", "mdi-tab-remove", "Tancar pestanya", self.close_tab, "Ctrl+W")
         add_act("hotlist", "mdi-folder-star", "Directoris freqüents", self.show_hotlist, "Ctrl+D")
         add_act("sync_dirs", "mdi-sync", "Sincronitzar directoris", self.show_sync_dirs)
-        add_act("refresh", "mdi-refresh", "Refrescar", self.refresh_panel)
+        add_act("refresh", "mdi-refresh", "Refrescar", self.refresh_panel, "Ctrl+R")
         add_act("search", "mdi-magnify", "Buscar", self.open_search_dialog, "Alt+F7")
         add_act("swap", "mdi-swap-horizontal", "Intercambiar", self.swap_panels, "Ctrl+U")
         add_act("equal", "mdi-arrow-right-bold", "Igualar", self.equal_panels)
@@ -364,8 +384,12 @@ class MainWindow(QMainWindow):
         self._goto_shift_action.triggered.connect(self.go_to_folder)
         self.addAction(self._goto_shift_action)
         add_act("select_all", "mdi-select-all", "Sel. Todo", self.select_all, "Ctrl+A")
-        add_act("copy_path", "mdi-content-copy-outline", "Copiar ruta", self.copy_path_to_clipboard)
-        add_act("new_folder", "mdi-folder-plus", "Nueva carpeta", self.create_folder)
+        add_act(
+            "copy_path", "mdi-content-copy-outline", "Copiar ruta", self.copy_path_to_clipboard, "Ctrl+Shift+C"
+        )
+        # F7 va aquí (no en una acció duplicada "new_folder_act"): el botó de la
+        # barra ha de tenir la mateixa drecera que la barra de funcions.
+        add_act("new_folder", "mdi-folder-plus", "Nueva carpeta", self.create_folder, "F7")
         add_act(
             "invert_selection",
             "mdi-select-inverse",
@@ -373,14 +397,18 @@ class MainWindow(QMainWindow):
             self.invert_selection,
             "Ctrl+I",
         )
-        add_act("deselect_all", "mdi-selection-off", "Deseleccionar todo", self.deselect_all)
+        add_act("deselect_all", "mdi-selection-off", "Deseleccionar todo", self.deselect_all, "Ctrl+Shift+A")
         add_act("rename", "mdi-rename-box", "Renombrar", self.rename_item, "F2")
-        add_act("view", "mdi-eye", "Ver", self.view_file)
+        # No hi ha cap acció "view" al mapa: el botó "Veure" de la barra de
+        # funcions crida directament self.view_file -> _run_action("view_file").
+        # (Una QAction sense toolbar ni drecera era codi orfe.)
         add_act("edit", "mdi-pencil", "Editar", self.edit_file, "F4")
         add_act("copy", "mdi-content-copy", "Copiar", self.copy_files, "F5")
         add_act("move", "mdi-file-move", "Mover", self.move_files, "F6")
-        add_act("new_folder_act", "mdi-folder-plus", "Nueva carpeta", self.create_folder, "F7")
         add_act("delete", "mdi-delete", "Borrar", self.delete_files, "F8")
+        add_act(
+            "secure_delete", "mdi-lock", "Borrado seguro", self.secure_delete_files, "Ctrl+Shift+Del"
+        )
 
         self.actions_map.update({"folders_only": self.btn_folders_only})
         self.actions_map["help"] = QAction(
@@ -388,6 +416,8 @@ class MainWindow(QMainWindow):
         )
         self.actions_map["help"].setShortcut(QKeySequence("F1"))
         self.actions_map["help"].triggered.connect(self.show_quick_help)
+        # F1 ha de funcionar encara que l'usuari tregui "help" de la barra
+        self.addAction(self.actions_map["help"])
 
         widget_map = {
             "settings": "btn_settings",
@@ -401,6 +431,14 @@ class MainWindow(QMainWindow):
         for k, attr_name in widget_map.items():
             w = getattr(self, attr_name)
             self.toolbar_manager.register_special_widget(k, w)
+
+        # Ctrl+Shift+F (advertit a l'ajuda F1 i als tooltips) per a "Només
+        # carpetes". El botó és un QToolButton, no un QAction, cal una acció
+        # aparte perquè el drecencr es pugui prémer des del teclat.
+        self._folders_only_action = QAction(self)
+        self._folders_only_action.setShortcut(QKeySequence("Ctrl+Shift+F"))
+        self._folders_only_action.triggered.connect(self.toggle_folders_only)
+        self.addAction(self._folders_only_action)
 
     def set_active_panel(self, panel):
         self.active_panel = panel
@@ -497,7 +535,7 @@ class MainWindow(QMainWindow):
         self.update_apps_menu()
 
     def go_up(self):
-        self.active_panel.go_up()
+        self._run_action("go_up")
 
     def go_root(self):
         self.active_panel.go_root()
@@ -526,6 +564,10 @@ class MainWindow(QMainWindow):
         dlg.exec()
 
     def show_sync_dirs(self):
+        self._run_action("sync_dirs")
+
+    def open_sync_dirs_dialog(self):
+        """Obre el diàleg de sincronització (implementació; crida per l'acció 'sync_dirs')."""
         from src.ui.dialogs.sync_dirs import SyncDirsDialog  # noqa: PLC0415
 
         left = self.left_panel.current_path
@@ -536,22 +578,22 @@ class MainWindow(QMainWindow):
 
     def refresh_panel(self):
         logging.debug("refresh_panel called, active_panel=%s", self.active_panel)
-        self.active_panel.refresh()
+        self._run_action("refresh")
 
     def select_all(self):
-        self.active_panel.select_all()
+        self._run_action("select_all")
 
     def invert_selection(self):
-        self.active_panel.invert_selection()
+        self._run_action("invert_selection")
 
     def deselect_all(self):
-        self.active_panel.clear_selection()
+        self._run_action("deselect_all")
 
     def rename_item(self):
-        self.active_panel.rename_selected_item()
+        self._run_action("rename")
 
     def copy_path_to_clipboard(self):
-        self.active_panel.copy_path_to_clipboard()
+        self._run_action("copy_path")
 
     def toggle_folders_only(self):
         self.active_panel.set_folders_only(self.btn_folders_only.isChecked())
@@ -571,7 +613,7 @@ class MainWindow(QMainWindow):
     def go_to_folder(self):
         self._run_action("goto")
 
-    def _toggle_quick_look(self):
+    def toggle_quick_look(self):
         self.quick_look.setVisible(not self.quick_look.isVisible())
         if self.quick_look.isVisible():
             self._update_quick_look_preview()
@@ -601,6 +643,9 @@ class MainWindow(QMainWindow):
     def delete_files(self):
         self._run_action("delete")
 
+    def secure_delete_files(self):
+        self._run_action("secure_delete")
+
     def create_folder(self):
         self._run_action("new_folder")
 
@@ -624,10 +669,29 @@ class MainWindow(QMainWindow):
             update_bookmarks_menu=self.update_bookmarks_menu,
         )
 
+    def _call_handler(self, action):
+        """Cridar un handler del registre amb el context correcte.
+
+        Els handlers del nucli (src/core/actions.py) reben un ActionContext
+        (paràmetre 'ctx'); els handlers de plugins reben el PluginAPI.
+        """
+        import inspect  # noqa: PLC0415
+
+        params = list(inspect.signature(action.handler).parameters.values())
+        if params and params[0].name == "ctx":
+            action.handler(self._action_context)
+            return
+        if params and params[0].default is inspect.Parameter.empty:
+            from src.core.plugin_api import PluginAPI  # noqa: PLC0415
+
+            action.handler(PluginAPI(self))
+            return
+        action.handler()
+
     def _run_action(self, action_id: str):
         action = action_registry.get(action_id)
         if action and action.handler:
-            action.handler(self._action_context)
+            self._call_handler(action)
         else:
             logger.warning("Action %s not found or has no handler", action_id)
 
@@ -738,18 +802,8 @@ class MainWindow(QMainWindow):
 
         action = action_registry.get(action_id)
         if action and action.handler:
-            # Verificar si el handler necesita argumentos (api)
-            import inspect  # noqa: PLC0415
-
-            sig = inspect.signature(action.handler)
-            param_count = len(
-                [p for p in sig.parameters.values() if p.default == inspect.Parameter.empty]
-            )
-            if param_count >= 1:
-                # El handler necesita el api
-                action.handler(api)
-            else:
-                action.handler()
+            # Verificar si el handler necesita argumentos (api o ctx)
+            self._call_handler(action)
         else:
             # Intentar ejecutar el plugin directamente desde el plugin_manager
             plugin_info = None
@@ -825,10 +879,22 @@ class MainWindow(QMainWindow):
             ("Lista", "list"),
             ("Iconos P", "icons"),
             ("Iconos G", "icons_large"),
+            ("Iconos XL", "icons_xl"),
         ]:
-            menu.addAction(n, partial(self.active_panel.set_view_mode, m))
+            menu.addAction(n, partial(self.set_view_mode, m))
         if hasattr(self, "btn_view_mode"):
             self.btn_view_mode.setMenu(menu)
+
+    def set_view_mode(self, mode):
+        """Aplica el mode de visualització als dos panells i el recorda.
+
+        En els modes d'icones es mostren miniatures reals de les imatges.
+        """
+        self.view_mode = mode
+        for panel in (self.left_panel, self.right_panel):
+            if panel is not None:
+                panel.set_view_mode(mode)
+        self.config.set_view_mode(mode)
 
     def update_bookmarks_menu(self):
         menu = QMenu(self)
@@ -848,10 +914,13 @@ class MainWindow(QMainWindow):
             self.refresh_main_toolbar()
 
     def open_bookmarks_manager(self):
+        self._run_action("edit_bookmarks")
+
+    def open_bookmarks_editor(self):
+        """Obre el gestor de marcadors (implementació; crida per l'acció 'edit_bookmarks')."""
         BookmarksEditor(self.bookmarks, self).exec()
         self.refresh_bookmarks_bar()
         self.update_bookmarks_menu()
-
     def view_file(self):
         self._run_action("view_file")
 
@@ -889,6 +958,10 @@ class MainWindow(QMainWindow):
         QMessageBox.about(self, "Acerca de JMComander", html)
 
     def open_search_dialog(self):
+        self._run_action("search")
+
+    def open_search_files_dialog(self):
+        """Obre el diàleg de cerca (implementació; crida per l'acció 'search')."""
         SearchDialog(self.active_panel.current_path, self).show()
 
     def setup_enhanced_status_bar(self):
@@ -1090,12 +1163,13 @@ class MainWindow(QMainWindow):
         l.setContentsMargins(5, 2, 5, 2)
         ops = [
             ("F2 Renombrar", self.rename_item),
-            ("F3 Ver", self.view_file),
+            ("Veure", self.view_file),
             ("F4 Editar", self.edit_file),
             ("F5 Copiar", self.copy_files),
             ("F6 Mover", self.move_files),
             ("F7 Carpeta", self.create_folder),
             ("F8 Borrar", self.delete_files),
+            ("Seguro", self.secure_delete_files),
             ("F9 Duplicar", self.duplicate_selected),
         ]
         for t, s in ops:
@@ -1151,15 +1225,21 @@ class MainWindow(QMainWindow):
                 pass
 
     def keyPressEvent(self, event):  # noqa: N802
-        k, _m = event.key(), event.modifiers()
+        k, m = event.key(), event.modifiers()
         if k == Qt.Key.Key_Tab:
-            self.set_active_panel(self.inactive_panel)
+            # El QTreeView consumeix la tecla Tab (navegació de focus), així que
+            # FilePanel la intercepta i emet switch_panel_requested. Aquí és el pla B.
+            # Amb modificadors (Ctrl+Tab, Shift+Tab...) no es commuta de panell.
+            if m & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier):
+                super().keyPressEvent(event)
+                return
+            self._run_action("switch_panel")
             return
         if k == Qt.Key.Key_Backspace:
-            self.go_up()
+            self._run_action("go_up")
             return
         if k == Qt.Key.Key_Delete:
-            self.delete_files()
+            self._run_action("delete")
             return
         super().keyPressEvent(event)
 

@@ -346,6 +346,18 @@ class SearchDialog(QDialog):
     def select_none(self):
         self.table.clearSelection()
 
+    def _confirm_delete_enabled(self) -> bool:
+        """Indica si cal demanar confirmació (opció de configuració del programa)."""
+        parent = self.parent()
+        config = getattr(parent, "config", None)
+        getter = getattr(config, "get_confirm_delete", None)
+        if getter is None:
+            return True
+        try:
+            return bool(getter())
+        except Exception:  # noqa: BLE001
+            return True
+
     def delete_selected(self):
         selected_rows = sorted(
             {index.row() for index in self.table.selectionModel().selectedIndexes()},
@@ -365,13 +377,16 @@ class SearchDialog(QDialog):
         count = len(paths)
         msg = f"¿Eliminar {count} archivos?\n\nEsta acción no se puede deshacer."
 
-        reply = QMessageBox.warning(
-            self,
-            "Confirmar eliminación",
-            msg,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
+        if not self._confirm_delete_enabled():
+            reply = QMessageBox.StandardButton.Yes
+        else:
+            reply = QMessageBox.warning(
+                self,
+                "Confirmar eliminación",
+                msg,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
 
         if reply == QMessageBox.StandardButton.Yes:
             deleted = 0

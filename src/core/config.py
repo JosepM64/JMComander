@@ -61,6 +61,8 @@ class ConfigManager:
             "tooltips": {},
             "background_operations": True,
             "work_directory": "",
+            "view_mode": "details",
+            "confirm_delete": True,
         }
         self.load()
 
@@ -76,6 +78,27 @@ class ConfigManager:
         self.data["tooltips"] = tooltips_dict
         self.save()
 
+    def get_view_mode(self):
+        """Mode de visualització desat (details / list / icons / icons_large / icons_xl)."""
+        mode = self.data.get("view_mode", "details")
+        if mode not in ("details", "list", "icons", "icons_large", "icons_xl"):
+            return "details"
+        return mode
+
+    def set_view_mode(self, mode):
+        """Desa el mode de visualització."""
+        self.data["view_mode"] = mode
+        self.save()
+
+    def get_confirm_delete(self) -> bool:
+        """Indica si cal demanar confirmació abans d'eliminar fitxers."""
+        return bool(self.data.get("confirm_delete", True))
+
+    def set_confirm_delete(self, enabled: bool):
+        """Desa si cal demanar confirmació abans d'eliminar fitxers."""
+        self.data["confirm_delete"] = bool(enabled)
+        self.save()
+
     def load(self):
         """Carga la configuración desde el archivo JSON"""
         if os.path.exists(self.filepath):
@@ -86,11 +109,34 @@ class ConfigManager:
 
                 # Asegurar que el layout tenga todos los botones disponibles
                 self._merge_toolbar_layout()
+                self._migrate_tooltips()
 
             except Exception as e:
                 logger.exception("Error cargando config: %s", e)  # noqa: TRY401
         else:
             logger.info("Archivo de configuración no encontrado, usando valores por defecto")
+
+    def _migrate_tooltips(self):
+        """Elimina tooltips desats que anuncien tecles que ja no existeixen.
+
+        Els tooltips desats (p. ex. "Refrescar ... (F5)") tenen prioritat sobre
+        els per defecte i enganyaven a l'usuari: F5 és Copiar, no Refrescar.
+        """
+        stale = {
+            "refresh": "Actualizar la lista de archivos (F5)",
+            "search": "Buscar archivos y carpetas (F3)",
+            "duplicate": "Duplicar archivos/carpetas seleccionados en el mismo directorio (Ctrl+D)",
+            "copy_path": "Copiar la ruta actual al portapapeles",
+        }
+        tooltips = self.data.get("tooltips", {})
+        changed = False
+        for key, old_text in stale.items():
+            if tooltips.get(key) == old_text:
+                tooltips.pop(key, None)
+                changed = True
+        if changed:
+            self.data["tooltips"] = tooltips
+            logger.info("Tooltips desats migrats: %s", ", ".join(stale))
 
     def _merge_toolbar_layout(self):
         """Fusiona el layout guardado con la lista maestra para no perder botones nuevos"""
@@ -115,6 +161,20 @@ class ConfigManager:
 
         # Nous terminals: inserir "wezterm" darrere de "powershell" (no al final)
         # quan provingui d'una config antiga que encara no el tenia
+        self._relocate_toolbar_entries(new_layout, saved)
+
+        # Garantizar que el botón de configuración esté siempre presente
+        if "settings" not in new_layout:
+            new_layout.append("settings")
+
+        self.data["toolbar_layout"] = new_layout
+
+    @staticmethod
+    def _relocate_toolbar_entries(new_layout, saved):
+        """Recol·loca els botons nous (afegits automàticament pel merge) al seu
+        lloc natural, en lloc de deixar-los al final (després del spacer)."""
+        # Nous terminals: inserir "wezterm" darrere de "powershell" (no al final)
+        # quan provingui d'una config antiga que encara no el tenia
         if "wezterm" in new_layout and "powershell" in new_layout:
             wi, pi = new_layout.index("wezterm"), new_layout.index("powershell")
             # Només recol·locar si el merge l'acaba d'afegir al final
@@ -135,11 +195,31 @@ class ConfigManager:
             new_layout.remove("iphone")
             new_layout.insert(new_layout.index("spacer"), "iphone")
 
-        # Garantizar que el botón de configuración esté siempre presente
-        if "settings" not in new_layout:
-            new_layout.append("settings")
+        # Botons Copiar/Mover (F5/F6): el merge genèric els afegiria al final
+        # (després del spacer, a la dreta). Els col·locem al costat de
+        # "new_folder" perquè l'usuari els trobi a la zona d'operacions.
+        # Primer els traiem tots, després els reinserim en ordre (copy, move)
+        # perquè no quedin invertits ni duplicats.
+        if "new_folder" in new_layout:
+            for key in ("copy", "move"):
+                if key in new_layout and (not saved or key not in saved):
+                    new_layout.remove(key)
+            anchor = new_layout.index("new_folder")
+            for key in ("copy", "move"):
+                if key not in new_layout:
+                    anchor += 1
+                    new_layout.insert(anchor, key)
 
-        self.data["toolbar_layout"] = new_layout
+        # Botó "Sincronitzar directoris" (v6.9.33): el merge genèric l'afegiria
+        # al final (després del spacer). El col·locem al costat de "goto".
+        if (
+            "sync_dirs" in new_layout
+            and saved
+            and "sync_dirs" not in saved
+            and "goto" in new_layout
+        ):
+            new_layout.remove("sync_dirs")
+            new_layout.insert(new_layout.index("goto") + 1, "sync_dirs")
 
     def save(self):
         """Guarda la configuración actual al archivo JSON"""

@@ -65,6 +65,32 @@ class ArchiveHandler:
                 return str(exe_path)
         return None
 
+    def _find_rar_creator(self) -> str | None:
+        """Busca una eina que pugui CREAR arxius RAR.
+
+        El UnRAR.exe gratuït que incloem (assets/UnRAR.exe) SOLAMENT extreu:
+        no accepta l'ordre 'a' (crear). Crear RAR requereix WinRAR (shareware)
+        o RAR.exe, que no venen amb l'aplicació.
+        """
+        locations = ["WinRAR.exe", "RAR.exe", "rar.exe"]
+        for loc in locations:
+            found = shutil.which(loc)
+            if found:
+                logger.info("Found RAR creator: %s", found)
+                return found
+        for base in (
+            os.environ.get("PROGRAMFILES"),
+            os.environ.get("PROGRAMFILES(X86)"),
+        ):
+            if not base:
+                continue
+            for loc in locations:
+                exe_path = Path(base) / "WinRAR" / loc
+                if exe_path.exists():
+                    logger.info("Found RAR creator: %s", exe_path)
+                    return str(exe_path)
+        return None
+
     def _find_7z_exe(self) -> str | None:
         locations = ["7z.exe", "7za.exe"]
         for loc in locations:
@@ -92,14 +118,39 @@ class ArchiveHandler:
         return None
 
     def _configure_rarfile(self):
+        """Configura rarfile perquè utilitzi una eina que realment funcioni.
+
+        rarfile 4.x és un parser 100% Python, però per descomprimir els
+        fitxers *comprimits* necessita un descompressor extern (unrar, unar,
+        7z o bsdtar). Si no se li diu quin utilitzar, tria el primer que
+        troba al PATH: a les màquines amb conda hi ha bsdtar (libarchive), que
+        NO sap llegir RAR5 comprimit i falla amb
+        "Failed the read enough data: req=... got=...".
+
+        Per això fixem l'eina: la DLL UnRAR si la versió de rarfile la sap
+        fer servir (rarfile < 4), i si no, l'executable UnRAR.exe / 7z.exe que
+        shippem a assets/.
+        """
         try:
-            if sys.platform == "win32":
+            if hasattr(rarfile, "UNRAR_LIB") and sys.platform == "win32":
                 dll_path = self._find_unrar_dll()
                 if dll_path:
                     rarfile.UNRAR_LIB = dll_path
                     logger.info("Configurado UnRAR DLL: %s", dll_path)
-        except ImportError:
+            if self.RAR_EXE:
+                rarfile.UNRAR_TOOL = self.RAR_EXE
+            elif self.SEVEN_ZIP_EXE:
+                rarfile.SEVENZIP_TOOL = self.SEVEN_ZIP_EXE
+        except (ImportError, AttributeError):
             pass
+
+    def _ensure_rarfile_tool(self) -> None:
+        """Força rarfile a reassignar l'eina (cachea el resultat globalment)."""
+        try:
+            rarfile.tool_setup(force=True)
+            logger.info("rarfile usando la herramienta: %s", rarfile.tool_setup().setup["open_cmd"][0])
+        except Exception as e:  # noqa: BLE001
+            logger.warning("No se pudo configurar la herramienta de rarfile: %s", e)
 
     def _find_unrar_dll(self) -> str | None:
         dll_names = ["UnRAR.dll", "UnRAR64.dll"]
@@ -173,12 +224,61 @@ class ArchiveHandler:
             logger.exception("Error extrayendo %s: %s", path, e)  # noqa: TRY401
         return False
 
+    def _progress_cancel_loop(
+        self, progress, items: list, process_fn,
+    ) -> int:
+        """Itera llista amb progress bar i cancel·lació. Retorna els processats."""
+        processed = 0
+        total = len(items) if items else 0
+        if total == 0:
+            return 0
+        # QProgressDialog ja ha de ser creat pel cridor amb range configurat
+        for i, item in enumerate(items):
+            if progress.wasCanceled():
+                progress.close()
+                return processed
+            progress.setValue(i + 1)
+            progress.setLabelText(f"Processant: {item}")
+            try:
+                process_fn(item)
+            except Exception:  # noqa: BLE001
+                logger.warning("Error processant: %s", item)
+                progress.setLabelText(f"Error: {item}")
+        progress.setValue(len(items) if items else 0)
+        progress.close()
+        return processed
+
     def _extract_rar(self, path: Path, dest: Path, password: str | None = None) -> bool:
-        # Intentar rarfile primero con la DLL
+        """Extreu un RAR.
+
+        Orden: UnRAR.exe CLI -> rarfile (parser Python) -> 7z.exe CLI.
+
+        El CLI de UnRAR va primer perquè és ~20x més ràpid que rarfile
+        (rarfile.extractall() obre un procés per cada fitxer) i perquè
+        bsdtar/libarchive no sap llegir els RAR5 sòlids.
+        Tots els subprocess s'executen sense finestra de consola (CREATE_NO_WINDOW).
+        """
+        # 1) UnRAR.exe CLI (ventana oculta) - mes rapida i mes fiable
+        if self.RAR_EXE:
+            try:
+                # UnRAR retorna rc=10 (destino no encontrado) si el directorio no existe
+                dest.mkdir(parents=True, exist_ok=True)
+                # "-p-" = sense contrasenya (no pregunta res i no s'ha penjat)
+                cmd = [self.RAR_EXE, "x", "-y", "-p-"]
+                if password:
+                    cmd[3] = f"-p{password}"
+                cmd.extend([str(path), str(dest)])
+                result = self._run_hidden(cmd, timeout=300)
+                if result.returncode == 0:
+                    logger.info("Extracted RAR using CLI: %s", path)
+                    return True
+                logger.warning("UnRAR CLI failed (rc=%s): %s", result.returncode, result.stderr[:200])
+            except Exception as cli_e:
+                logger.exception("UnRAR CLI error: %s", cli_e)  # noqa: TRY401
+
+        # 2) rarfile (parseo puro en Python, usa la herramienta configurada)
         try:
-            dll_path = self._find_unrar_dll()
-            if dll_path:
-                rarfile.UNRAR_LIB = dll_path
+            self._ensure_rarfile_tool()
             with rarfile.RarFile(str(path)) as r:
                 if password:
                     r.setpassword(password)
@@ -187,21 +287,35 @@ class ArchiveHandler:
             return True  # noqa: TRY300
         except Exception as e:  # noqa: BLE001
             logger.warning("rarfile failed: %s", e)
-            # Fallback: usar UnRAR.exe CLI
-            if self.RAR_EXE:
-                try:
-                    cmd = [self.RAR_EXE, "x", "-y"]
-                    if password:
-                        cmd.extend([f"-p{password}"])
-                    cmd.extend([str(path), str(dest)])
-                    result = subprocess.run(cmd, capture_output=True, timeout=120)  # noqa: PLW1510
-                    if result.returncode == 0:
-                        logger.info("Extracted RAR using CLI: %s", path)
-                        return True
-                    logger.exception("UnRAR CLI failed: %s", result)
-                except Exception as cli_e:
-                    logger.exception("UnRAR CLI error: %s", cli_e)  # noqa: TRY401
+
+        # 3) Ultimo recurso: 7z.exe CLI (tambien lee RAR, ventana oculta)
+        if self.SEVEN_ZIP_EXE:
+            try:
+                dest.mkdir(parents=True, exist_ok=True)
+                cmd = [self.SEVEN_ZIP_EXE, "x", "-y", "-p"]
+                if password:
+                    cmd[3] = f"-p{password}"
+                cmd.extend([str(path), f"-o{dest!s}"])
+                result = self._run_hidden(cmd, timeout=300)
+                if result.returncode == 0:
+                    logger.info("Extracted RAR using 7z CLI: %s", path)
+                    return True
+                logger.warning("7z CLI failed (rc=%s): %s", result.returncode, result.stderr[:200])
+            except Exception as cli_e:
+                logger.exception("7z CLI error: %s", cli_e)  # noqa: TRY401
         return False
+
+    @staticmethod
+    def _run_hidden(cmd: list[str], timeout: int = 120):
+        """Ejecuta un comando sin abrir ventana de consola (Windows)."""
+        kwargs = {
+            "capture_output": True,
+            "timeout": timeout,
+            "stdin": subprocess.DEVNULL,
+        }
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+        return subprocess.run(cmd, **kwargs)  # noqa: PLW1510
 
     def _extract_7z(self, path: Path, dest: Path, password: str | None = None) -> bool:
         # Intentar py7zr primero
@@ -212,18 +326,17 @@ class ArchiveHandler:
             return True  # noqa: TRY300
         except Exception as e:  # noqa: BLE001
             logger.warning("py7zr failed: %s", e)
-            # Fallback: usar 7z.exe CLI
+            # Fallback: usar 7z.exe CLI (ventana oculta)
             if self.SEVEN_ZIP_EXE:
                 try:
-                    cmd = [self.SEVEN_ZIP_EXE, "x", "-y"]
-                    if password:
-                        cmd.extend([f"-p{password}"])
+                    # "-p" sin valor = sin contrasenya (evita que 7z la demani)
+                    cmd = [self.SEVEN_ZIP_EXE, "x", "-y", f"-p{password}" if password else "-p"]
                     cmd.extend([str(path), f"-o{dest!s}"])
-                    result = subprocess.run(cmd, capture_output=True, timeout=300)  # noqa: PLW1510
+                    result = self._run_hidden(cmd, timeout=300)
                     if result.returncode == 0:
                         logger.info("Extracted 7z using CLI: %s", path)
                         return True
-                    logger.exception("7z CLI failed: %s", result)
+                    logger.warning("7z CLI failed (rc=%s): %s", result.returncode, result.stderr[:200])
                 except Exception as cli_e:
                     logger.exception("7z CLI error: %s", cli_e)  # noqa: TRY401
         return False

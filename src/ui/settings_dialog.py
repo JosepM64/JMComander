@@ -178,6 +178,17 @@ class SettingsDialog(QDialog):
         self.chk_background_ops.setChecked(self.config.get_background_operations())
         gen_layout.addWidget(self.chk_background_ops)
 
+        self.chk_confirm_delete = QCheckBox(
+            "Pedir confirmación antes de eliminar archivos"
+        )
+        self.chk_confirm_delete.setToolTip(
+            "Cuando está activado, antes de eliminar elementos se muestra una "
+            "ventana de confirmación con el número de elementos a eliminar.\n"
+            "Si lo desactivas, los elementos se borran directamente (F8)."
+        )
+        self.chk_confirm_delete.setChecked(self.config.get_confirm_delete())
+        gen_layout.addWidget(self.chk_confirm_delete)
+
         work_dir_layout = QHBoxLayout()
         work_dir_layout.addWidget(QLabel("Directorio de trabajo (fallback al iniciar):"))
         self.work_dir_input = QLineEdit(self.config.get_work_directory())
@@ -337,6 +348,7 @@ class SettingsDialog(QDialog):
                 self.list_toolbar.addItem(item)
         for key, edit in self.tooltip_inputs.items():
             edit.setText(TOOLBAR_DEFAULT_TOOLTIPS.get(key, ""))
+        self.chk_confirm_delete.setChecked(True)
 
     def _browse_work_directory(self):
         from PySide6.QtWidgets import QFileDialog  # noqa: PLC0415
@@ -358,5 +370,6 @@ class SettingsDialog(QDialog):
         new_tips = {k: e.text() for k, e in self.tooltip_inputs.items()}
         self.config.set_tooltips(new_tips)
         self.config.set_background_operations(self.chk_background_ops.isChecked())
+        self.config.set_confirm_delete(self.chk_confirm_delete.isChecked())
         self.config.set_work_directory(self.work_dir_input.text().strip())
         self.accept()

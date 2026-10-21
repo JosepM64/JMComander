@@ -1,5 +1,115 @@
 # Changelog JMComander
 
+## Versió 6.9.36 - Octubre 2026
+
+### Borrat segur (reactivat)
+El motor de borrat segur existia al codi però **no era accessible** des de la interfície: `SecureDelete` (`src/core/secure_delete.py`), `SecureDeleteJob` (`src/core/jobs.py`) i `OperationEngine.queue_secure_delete()` (`src/core/engine.py`) eren **codi orfe** (cap ruta els cridava des del commit inicial). Ara es reconnecta com a **acció del core** (no com a plugin), perquè el backend ja és del core i així es treu el codi mort en lloc de duplicar-lo.
+
+- **Nou `src/ui/dialogs/secure_delete_dialog.py`**: diàleg amb la llista d'elements i la mida total, la unitat detectada (SSD/HDD), el mètode (Automàtic / Sobrescriure HDD / Aleatori SSD / Ràpid) i el nombre de passades de sobrescriptura, amb l'explicació del risc de cada opció.
+- **`src/core/actions.py`**: nova acció `secure_delete` (drecera **Ctrl+Shift+Del**) que obre el diàleg i engega `queue_secure_delete()` amb la barra de progrés i el botó de cancel·lació del motor d'operacions.
+- **`src/ui/main_window.py`**: acció "Borrado seguro" (icona `mdi-lock`, nova a `src/assets/icons/`) i botó **"Seguro"** a la barra de funcions.
+- **`src/core/plugin_api.py`**: `api.secure_delete(paths, method="auto", passes=3)` perquè els plugins també puguin fer borrat segur.
+- **Ajuda F1** i **`src/shortcuts_constants.py`**: documentada la drecera `Ctrl+Shift+Del`.
+
+### Verificació
+- `ruff check src main.py` → *All checks passed!*
+- Test nou `securetest.py` → PASS (diàleg, paràmetres, acció registrada, drecera sense conflictes, esborrat real d'un fitxer de proves, `queue_secure_delete` cridat).
+- Regressió: `audit2.py` 51/51 PASS i `functest2.py` FAIL 0.
+
+## Versió 6.9.35 - Octubre 2026
+
+### Confirmació d'eliminació configurable
+Abans l'eliminació (F8, botó de la barra de funció, menú contextual) ** sempre preguntava**. Ara es pot decidir des de la configuració.
+
+- **`src/core/config.py`**: nova opció `confirm_delete` (per defecte `True`) amb `get_confirm_delete()` / `set_confirm_delete()`.
+- **`src/ui/settings_dialog.py`**: nova casella **"Pedir confirmación antes de eliminar archivos"** a la pestanya *General*; "Restaurar Predeterminados" la torna a activar.
+- **`src/core/actions.py`**: `_delete_files()` només mostra el diàleg "¿Eliminar N elementos?" si l'opció és activa. Si la configuració no és accessible o hi ha un error en llegir-la, **es confirma igual** (mai s'elimina sense voler).
+- **`src/ui/search_dialog.py`**: el borrat des del diàleg de cerca respecta la mateixa opció.
+
+### Verificació
+- `ruff check src main.py` → *All checks passed!*
+- Test nou `confirmtest.py` → **14/14 PASS** (valor per defecte, persistència al JSON, pregunta/no pregunta segons l'opció, suports sense configuració o amb error → confirma igual, checkbox al dialeg de configuració, desada i restauració).
+- Regressió: `audit2.py` 51/51 PASS i `functest2.py` FAIL 0.
+
+## Versió 6.9.34 - Octubre 2026
+
+### Miniatures reals d'imatges a les vistes d'icones
+Causa arrel: el model retornava sempre una **icona estàtica per extensió** (`SP_FileDialogContentsView`), de manera que en "Iconos G" (i "Iconos P") es veien icones genèrics i mai la imatge del fitxer.
+
+- **Nou `src/ui/thumbnails.py`**: `ThumbnailProvider` que genera miniatures en **segon pla** amb `QThreadPool` + `QImageReader.setScaledSize` (descodifica només els píxels necessaris, conservant la proporció) i les desa en un `QPixmapCache` compartit (128 MiB) per tots els panells. S'ometen els fitxers de més de 96 MiB.
+- **`src/ui/file_system_model.py`**: el `DecorationRole` demana la miniatura al proveidor; si encara no està llesta mostra la icona estàtica i, quan arriba, es refresca **només la fila** (`dataChanged`). El model no es pot trencar per una imatge corrupta.
+- **`src/ui/panel.py`**: mides reals d'icona **64 px** (Iconos P), **128 px** (Iconos G) i **224 px** (Iconos XL, nou); la vista d'icones deixa d'assumir mides uniformes i repinta bé quan canvien les miniatures.
+- **`src/ui/main_window.py`**: el mode de visualització s'aplica als **dos panells** (abans només al panell actiu) i hi ha una opció nova **"Iconos XL"**.
+- **`src/core/config.py`**: el mode de visualització es desa i es recupera a l'arrencada (`view_mode`).
+
+### Formats i robustesa de les miniatures
+- **HEIC / HEIF / AVIF**: Qt 6 no sap llegir aquests formats, de manera que es decodifiquen amb **pillow-heif** (libheif 1.23) en el fil de treball i es converteixen a `QImage`. Abans es reintentava la decodificació **cada 400 ms** perquè Qt retornava una imatge buida.
+- **SVG / SVGZ** s'afegeixen a la llista de formats amb miniatura (Qt ja els sabia llegir).
+- **Cau de memòria (negativa)**: un fitxer que no es pot decodificar es recorda amb el seu `mtime` i **no es torna a provar** en cada repintat; si el fitxer canvia, es reintenta.
+- `src/ui/file_system_model.py`: si la decodificació falla ja no s'emet `dataChanged` (evita repintats inútils).
+- `src/ui/thumbnails.py`: el proveidor recull les imatges ja decodificades directament del `QPixmapCache` → la miniatura apareix encara que el model no estigui connectat; i el `emit` del senyal ja no llença `RuntimeError: Signal source has been deleted` en tancar l'aplicació.
+
+### Verificació
+- `ruff check src main.py` → *All checks passed!*
+- Test nou `thumbtest.py` → **16/16 PASS** (miniatura real de 128x96 px amb el pixel correcte de la imatge, proporció conservada, fitxer corrupte sense trencar el model, mode aplicat als dos panells i desat al config).
+- Test nou `thumbtest2.py` → **12/12 PASS** (AVIF decodificat amb pillow-heif, SVG amb Qt, miniatura recuperada del cache, **cap reintent en bucle**, fitxer corrupte provat una sola vegada).
+- Regressió: `audit2.py` 51/51 PASS i `functest2.py` FAIL 0.
+- App desplegada (v6.9.34): les miniatures reals es veuen a "Iconos G" (40/40 elements amb pixmap de 128 px, proporció conservada) i el log no conté cap error.
+
+## Versió 6.9.33 - Octubre 2026
+
+### Auditoria de codi: cap botó mort i cap codi orfe
+Causa arrel: hi havia **12 entrades del registre d'accions sense `handler`** (declaraven una drecera però no feien res), una acció QAction impossible d'activar, botons d'una funció que no tenien cap drecera, i la tecla **Tab no canviava de panell** perquè el `QTreeView` es queda la tecla per a la navegació de focus.
+
+- `src/core/actions.py`: **tots els handlers que faltaven** implementats i connectats — `copy_path`, `exit`, `rename`, `select_all`, `invert_selection`, `deselect_all`, `refresh`, `switch_panel`, `go_up`, `search`, `edit_bookmarks`, `sync_dirs` (el registre ja no en té cap sense handler). `view_file` ja no anuncia F3 (F3 és **Quick Look**, nova entrada `quick_look`).
+- `src/ui/main_window.py`: les funcions d'entrada deleguen al registre (`_run_action("refresh")`, `_run_action("select_all")`, …) → una sola font de veritat; **F1 (Ajuda) sempre disponible** (`addAction`), encara que es tregui de la toolbar; eliminada l'acció QAction orfa "view" (el botó "Veure" de la barra de funcions és l'única entrada); nous mètodes públics `open_sync_dirs_dialog`, `open_search_files_dialog`, `open_bookmarks_editor`, `toggle_quick_look`; nova `_call_handler()` que distingeix els handlers de tipus `ActionContext` dels de plugin.
+- `src/ui/panel.py`: **`Tab` canvia de panell** (signal nou `switch_panel_requested`); amb modificadors (Ctrl+Tab, Shift+Tab, Alt+Tab) la tecla es consumeix **sense** commutar, perquè abans arribava al `MainWindow` i canviava el panell igualment.
+- `src/toolbar_constants.py`: **"Sincronitzar directoris"** afegit a la toolbar (abans era completament inaccessible: ni drecera ni botó).
+- `src/core/config.py`: `_merge_toolbar_layout()` descompost en `_relocate_toolbar_entries()`; `sync_dirs` es col·loca al costat de `goto` en configs antigues.
+- `src/ui/dialogs/quick_help.py` i `src/shortcuts_constants.py`: contents alineats amb la implementació real (F3 = Quick Look, F7 només una vegada, F1 / Alt+F4 / Shift+F7 / Ctrl+D / Ctrl+T / Ctrl+W afegits).
+- `src/core/actions.py`: **tots els botons de fitxer avisa si no hi ha res seleccionat** (Renombrar, Veure, Editar, Copiar, Mover, Borrar, Duplicar) → abans alguns eren completament silenciosos i semblaven botons morts.
+- `src/version.py` bump 6.9.32 → 6.9.33
+- verify: auditoria 51 PASS / 0 FAIL; test funcional 9 PASS / 0 FAIL (44 accions del registre, totes les QAction de la finestra i tots els widgets especials de la barra s'executen sense error; Tab commuta, Ctrl+Tab no); app desplegada verificada amb esdeveniments de teclat reals (F5 sense selecció → "No hay elementos seleccionados", F7 → "Nueva Carpeta", Tab commuta de panell, 8 botons de la barra de funcions visibles); ruff clean.
+
+## Versió 6.9.32 - Octubre 2026
+
+### Finestra de consola que apareixia en obrir un .rar
+Causa arrel: l'extracció de RAR es feia amb `rarfile`, que tria automàticament la primera eina de descompressió que troba al PATH. A les màquines amb conda hi ha `bsdtar` (libarchive), que **no sap llegir els RAR5 sòlids** i fallava amb `Failed the read enough data: req=... got=...`; el codi acabava fent servir la CLI sense `CREATE_NO_WINDOW`, d'aquí la consola parpadejant.
+
+- `src/core/archive_handler.py`:
+  - nova `_run_hidden()` (staticmethod): `subprocess.run` amb `creationflags=subprocess.CREATE_NO_WINDOW` a Windows → **mai més finestra de consola**.
+  - `_configure_rarfile()` reescrit: ja no assigna `rarfile.UNRAR_LIB` (a rarfile ≥ 4 aquesta opció **no existeix**); fixa `rarfile.UNRAR_TOOL` (el `UnRAR.exe` inclòs a assets) o `rarfile.SEVENZIP_TOOL`.
+  - nova `_ensure_rarfile_tool()`: `rarfile.tool_setup(force=True)` perquè no es quedi amb la eina cachejada.
+  - `_extract_rar()`: ordre **UnRAR.exe CLI → rarfile → 7z.exe CLI**, tots amb finestra oculta; `-p-` quan no hi ha contrasenya (no es queda penjat preguntant) i `-p<contrasenya>` quan n'hi ha.
+  - `_extract_7z()`: fallback 7z CLI amb `-p` / `-p<contrasenya>` i finestra oculta.
+  - nova `_find_rar_creator()`: cerca WinRAR.exe / RAR.exe (eines que sí que poden **crear** RAR).
+  - el directori de destí es crea abans de cridar la CLI (`dest.mkdir(parents=True, exist_ok=True)`): UnRAR retorna `rc=10` ("destino no encontrado") si el directori no existeix.
+- `src/plugins/compressor/main.py`: la compressió RAR ja no intenta `rarfile.RarFile(..., "w")` (rarfile 4.x només supporta lectura → `NotImplementedError`) i usa WinRAR/RAR amb `CREATE_NO_WINDOW`; si no hi ha cap motor de creació mostra un error clar enlloc de dir "Éxito" sense haver creat res. La compressió 7z també comprova el codi de retorn i l'existència del fitxer.
+- `src/core/secure_delete.py`: les crides a PowerShell afegeixen `creationflags=CREATE_NO_WINDOW` (abans només feien servir `SW_HIDE`, que no evita el parpelleig).
+- `src/version.py` bump 6.9.31 → 6.9.32
+- verify: test de RAR 8 PASS / 0 FAIL (extracció de 1664 fitxers / 520,7 MB en **3,5 s** en lloc de 82,5 s amb rarfile o de fallada amb bsdtar); app desplegada (`C:\varis\JMComander`): extracció del RAR real correcte (1664 fitxers, 3,7 s) i **0 finestres de consola** detectades; log sense exceptions; ruff clean (només INP001 preexistent).
+
+## Versió 6.9.31 - Octubre 2026
+
+### CorreCCIó de F5 (Copiar), F6 (Mover) i F7 (Crear carpeta) que "no feien res"
+Causa arrel: **cap dels dos botons Copiar/Mover existia a la toolbar** (`TOOLBAR_MASTER_LAYOUT` no els tenia, i la config guardada de l'usuari tampoc). A més, various tooltips anunciaven tecles que no existien.
+
+- `src/toolbar_constants.py`: afegits `copy` i `move` a `TOOLBAR_MASTER_LAYOUT` (després de `new_folder`) i a `TOOLBAR_DISPLAY_NAMES`; tooltips corregits (Refrescar ja no diu "(F5)", Buscar diu "(Alt+F7)", Duplicar diu "(F9)", Copiar "(F5)", Mover "(F6)", Copiar ruta "(Ctrl+Shift+C)").
+- `src/core/config.py`: `_merge_toolbar_layout()` reubica `copy`/`move` al costat de `new_folder` (i en ordre correcte: copy abans de move) en configs antigues; nova `_migrate_tooltips()` elimina els tooltips desats que anunciaven tecles falses.
+- `src/core/actions.py`: `_copy_files()` / `_move_files()` ara mostren un avís "No hay elementos seleccionados" enlloc de no fer res en silenci.
+- `src/ui/main_window.py`: `refresh` = **Ctrl+R**, `copy_path` = **Ctrl+Shift+C**, `deselect_all` = **Ctrl+Shift+A**, `folders_only` = **Ctrl+Shift+F** (nova acció), F7 mogut a l'acció `new_folder` (abans només hi era a la duplicada `new_folder_act`), `splitter.setMinimumHeight(120)` perquè la barra de funcions F2..F9 no es talli, `setMinimumHeight(340)` a la finestra.
+- `main.py`: el `GlobalKeyFilter` ja no s'equivoca les tecles amb Ctrl/Alt/Meta → **Ctrl+A (seleccionar tot)**, Ctrl+C, Ctrl+G i Ctrl+Shift+C tornen a funcionar. La classe s'ha extret a nivell de mòdul per poder testejarla.
+- `src/ui/file_system_model.py`: corregit `SP_FileDialogContents` (no existeix a PySide6 6.11 → provocava 239 exceptions globals i cap icona de fitxer); mapa `_ICON_BY_EXT` construït una sola vegada a import; `SP_MediaPlaylist` → `SP_MediaPlay`.
+- `src/shortcuts_constants.py` i `src/ui/dialogs/quick_help.py` alineats amb la implementació real.
+- `src/version.py` bump 6.9.30 → 6.9.31
+- `JMComander.spec`: afegits els hiddenimports `src.core.credential_store`, `src.core.archive_handler` i `src.core.fs_utils` (els plugins es carreguen dinàmicament i PyInstaller no els detectava → `ModuleNotFoundError: src.core.credential_store` al construir l'exe); eliminat l'hiddenimport obsolet `src.ui.progress_dialog` (ja no existeix).
+- verify: smoke test 31 PASS / 0 FAIL; ruff clean (només INP001 preexistent).
+
+## Versió 6.9.30 - Octubre 2026
+
+### Ajustos preliminars de dreceres i tooltips
+- Realignació inicial dels atajos amb la implementació (Refrescar Ctrl+R, Duplicar F9, Quick Look F3).
+
 ## Versió 6.9.29 - Octubre 2026
 
 ### Botó iPhone visible a "Orden Barra" i a la toolbar principal

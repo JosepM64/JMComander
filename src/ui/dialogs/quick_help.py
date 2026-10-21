@@ -28,21 +28,24 @@ _HELP_DATA = [
         "Operacions de fitxers",
         [
             ("F2", "Reanomenar"),
-            ("F3", "Veure fitxer / Quick Look"),
+            ("F3", "Quick Look (previsualització)"),
             ("F4", "Editar fitxer"),
             ("F5", "Copiar fitxers"),
             ("F6", "Moure fitxers"),
             ("F7", "Crear carpeta nova"),
             ("Shift+F7", "Anar a ruta (canviar directori)"),
             ("F8 / Supr", "Eliminar fitxers"),
+            ("Ctrl+Shift+Del", "Borrat segur (sobreescriu el contingut)"),
             ("F9", "Duplicar fitxers"),
             ("Ctrl+Shift+C", "Copiar ruta"),
+            ("Veure (barra)", "Obrir el fitxer amb el programa per defecte"),
         ],
     ),
     (
         "Seleccio",
         [
             ("Ctrl+A", "Seleccionar tot"),
+            ("Ctrl+Shift+A", "Deseleccionar tot"),
             ("Ctrl+I", "Invertir seleccio"),
             ("+ / -", "Seleccionar / Deseleccionar per patro"),
             ("Ctrl+Shift+F", "Nomes carpetes"),
@@ -77,7 +80,6 @@ _HELP_DATA = [
         "Altres",
         [
             ("F1", "Ajuda rapida"),
-            ("Ctrl+N", "Nova carpeta"),
             ("Alt+F4", "Sortir de JMComander"),
         ],
     ),
