@@ -2,6 +2,7 @@ import fnmatch
 import logging
 import os
 import re
+import shutil
 import subprocess
 import time
 import winreg
@@ -9,6 +10,7 @@ from datetime import UTC, datetime
 
 from PySide6.QtCore import (
     QDir,
+    QEvent,
     QItemSelection,
     QItemSelectionModel,
     QSize,
@@ -139,7 +141,6 @@ class FilePanel(QWidget):
             "#navFrame { border-bottom: 3px solid #1976D2; background-color: #f0f7ff; }"
         )
         self.nav_frame.setMouseTracking(True)
-        self.nav_frame.installEventFilter(self)
         nav = QHBoxLayout(self.nav_frame)
         nav.setContentsMargins(2, 2, 2, 2)
         nav.setSpacing(2)
@@ -286,6 +287,7 @@ class FilePanel(QWidget):
         self.list = QListView()
         self.icon = QListView()
         self._setup_view(self.tree)
+        self.nav_frame.installEventFilter(self)
         self._setup_view(self.list)
         self._setup_view(self.icon)
         self.icon.setViewMode(QListView.ViewMode.IconMode)
@@ -1481,7 +1483,7 @@ class FilePanel(QWidget):
         menu.addAction("Eliminar", lambda: self.delete_requested.emit())  # noqa: PLW0108
         menu.exec(self.current_view_widget.mapToGlobal(position))
 
-    def eventFilter(self, obj, event):  # noqa: N802
+    def eventFilter(self, obj, event):  # noqa: N802, PLR0912
         # Manejar clicks para emitir foco
         if event.type() == event.Type.MouseButtonPress:
             # Click on nav_frame - focus panel
@@ -1531,6 +1533,29 @@ class FilePanel(QWidget):
                 self.current_view_widget.setFocus()
                 return True
 
+        # --- Arrossegar i soltar dins del mateix panell -----------------
+        # Les vistes estan configurades amb setDragEnabled/acceptDrops però,
+        # sense aquests manejadors, l'usuari ve l'icona (+ / fletxa) i al
+        # soltar no passa res.
+        # El nav_frame té aquest eventFilter des de que les vistes existent,
+        # però es protegix per si mai es crida abans o després d'esborrar-les.
+        if not (hasattr(self, "tree") and hasattr(self, "list") and hasattr(self, "icon")):
+            return super().eventFilter(obj, event)
+        try:
+            viewports = (self.tree.viewport(), self.list.viewport(), self.icon.viewport())
+        except RuntimeError:
+            # Els objectes Qt ja s'han esborrat (atexit).
+            return super().eventFilter(obj, event)
+        if obj in viewports:
+            if event.type() in (QEvent.Type.DragEnter, QEvent.Type.DragMove):
+                if event.mimeData() and event.mimeData().hasUrls():
+                    event.setDropAction(self._drop_action(event))
+                    event.accept()
+                    return True
+            elif event.type() == QEvent.Type.Drop:
+                self._perform_drop(obj, event)
+                return True
+
         return super().eventFilter(obj, event)
 
     def _handle_switch_panel_key(self, event):
@@ -1554,6 +1579,85 @@ class FilePanel(QWidget):
             return True
         self.switch_panel_requested.emit()
         return True
+
+    def _drop_action(self, event) -> Qt.DropAction:
+        """Decideix si l'arrossegament és copia o moviment segons el modificador.
+
+        Sense modificador (o Ctrl) -> Copia.
+        Shift                      -> Moviment.
+        """
+        if event.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier:
+            return Qt.DropAction.MoveAction
+        return Qt.DropAction.CopyAction
+
+    def _perform_drop(self, viewport, event):  # noqa: PLR0912
+        """Executa la còpia o el moviment dels fitxers arrossejats.
+
+        Es llegeixen les rutes de les dades MIME (file:// URLs), es determina
+        la carpeta destí (l'element sobre el qual es solta o la ruta actual)
+        i s'executa l'operació corresponent.
+        """
+        mime = event.mimeData()
+        if not mime or not mime.hasUrls():
+            return
+
+        source_paths = []
+        for url in mime.urls():
+            path = os.path.normpath(url.toLocalFile())
+            if path and os.path.exists(path):
+                source_paths.append(path)
+
+        if not source_paths:
+            return
+
+        # Carpeta destí: l'element sobre el qual es solta (o la ruta actual).
+        target_path = None
+        idx = viewport.indexAt(event.pos())
+        if idx.isValid():
+            target_path = self.get_path_from_index(idx)
+            if target_path and not os.path.isdir(target_path):
+                target_path = os.path.dirname(target_path)
+        if not target_path:
+            target_path = self.current_path
+        target_path = os.path.normpath(target_path)
+
+        # Seguretat: no soltar un element sobre sí mateix ni una carpeta
+        # dentró d'una de les seves pròpies subcarpetes.
+        target_norm = os.path.normcase(target_path)
+        for src in source_paths:
+            src_norm = os.path.normcase(src)
+            if src_norm == target_norm:
+                return
+            if target_norm.startswith(src_norm + os.sep):
+                return
+
+        move = bool(event.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier)
+
+        errors = []
+        for src in source_paths:
+            name = os.path.basename(src)
+            dst = os.path.join(target_path, name)
+            try:
+                if os.path.exists(dst):
+                    errors.append(f"Ja existeix: {name}")
+                    continue
+                if move:
+                    shutil.move(src, dst)
+                elif os.path.isdir(src):
+                    shutil.copytree(src, dst)
+                else:
+                    shutil.copy2(src, dst)
+            except Exception as e:  # noqa: BLE001
+                errors.append(f"{name}: {e}")
+
+        if errors:
+            QMessageBox.warning(
+                self,
+                "Error en l'arrossegament",
+                "No s'han pogut processar alguns elements:\n\n"
+                + "\n".join(errors),
+            )
+        self.refresh()
 
     def go_back(self):
         path = self._path_history.back()

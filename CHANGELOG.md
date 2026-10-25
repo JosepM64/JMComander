@@ -1,5 +1,14 @@
 # Changelog JMComander
 
+## Versió 6.9.37 - Octubre 2026
+
+### Drag&Drop dins del mateix panell
+Arrossegar una carpeta o arxiu i soltar-la sobre una altra carpeta en el mateix panell ara copia o mou l'element de verdad (abans només es veia l'icona de `+` o de fletxa, i al soltar no passava res).
+
+- **`src/ui/panel.py`**: s'afegixen `dragEnterEvent`/`dragMoveEvent`/`dropEvent` (a través de `eventFilter`) als viewports del tree, el list i la vista d'icones.
+- **Shift premut** → MOU l'element (icona de fletxa); **sense modificador** (o Ctrl) → COPIA l'element (icona `+`).
+- Es descarta l'autodrop (soltar sobre el propi element o una subcarpeta) i es mostra un avís si s'hi troba algun error de copiatge/moument. El panell es refresca al final.
+
 ## Versió 6.9.36 - Octubre 2026
 
 ### Borrat segur (reactivat)

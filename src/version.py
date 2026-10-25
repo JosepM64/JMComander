@@ -1,4 +1,4 @@
-__version__ = "6.9.36"
+__version__ = "6.9.37"
 __author__ = "Josep Maria Tapia"
 __website__ = "https://www.posicionamientowebysem.com/"
 
