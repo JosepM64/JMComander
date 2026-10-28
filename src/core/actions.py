@@ -101,6 +101,30 @@ def _is_shell_path(p):
     return str(p).startswith("::") or "\\SID-" in str(p) or "shell::" in str(p).lower()
 
 
+def _copiar_mover_a_mtp_bloqueado(ctx: ActionContext, d: object, verbo: str) -> bool:
+    """
+    El destí és una ruta Shell (dispositiu iPhone/MTP): l'escriptura directa
+    no està suportada (no és una unitat de disc real). Mostra un avís clar i
+    retorna True per cancel·lar l'operació.
+    """
+    if not _is_shell_path(d):
+        return False
+    QMessageBox.warning(
+        ctx.parent,
+        verbo,
+        f"No se puede {verbo.lower()} directamente a un dispositivo iPhone/MTP.\n\n"
+        "La ruta de destino es un espacio de nombres Shell del dispositivo "
+        "(no es una unidad de disco real), por lo que la escritura directa "
+        "falla (\"medio protegido contra escritura\" o \"permiso denegado\").\n\n"
+        f"Para {verbo.lower()} archivos DESDE el iPhone al PC:\n"
+        "1. Deje el panel del iPhone como PANEL ACTIVO.\n"
+        "2. Seleccione los archivos y pulse Copiar/Mover.\n"
+        "3. El panel inactivo debe ser la unidad de PC de destino.",
+        QMessageBox.StandardButton.Ok,
+    )
+    return True
+
+
 def _no_selection(ctx: ActionContext, title: str):
     """Avisa l'usuari enlloc de no fer res (F5/F6 no semblaven funcionar)."""
     QMessageBox.information(
@@ -137,6 +161,8 @@ def _copy_files(ctx: ActionContext):
         _no_selection(ctx, "Copiar")
         return
     d = ctx.inactive_panel.current_path
+    if _copiar_mover_a_mtp_bloqueado(ctx, d, "Copiar"):
+        return
     if (
         s
         and QMessageBox.question(ctx.parent, "Copiar", f"¿Copiar {len(s)} items?")
@@ -161,6 +187,8 @@ def _move_files(ctx: ActionContext):
         _no_selection(ctx, "Mover")
         return
     d = ctx.inactive_panel.current_path
+    if _copiar_mover_a_mtp_bloqueado(ctx, d, "Mover"):
+        return
     if (
         s
         and QMessageBox.question(ctx.parent, "Mover", f"¿Mover {len(s)} items?")
