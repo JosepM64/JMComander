@@ -1,4 +1,4 @@
-import datetime as _DT  # noqa: N812
+import datetime as _DT  # noqa: N812, ICN001
 import logging
 import os
 import re

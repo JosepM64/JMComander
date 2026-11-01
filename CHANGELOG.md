@@ -1,5 +1,20 @@
 # Changelog JMComander
 
+## Versió 6.9.39 - Octubre 2026
+
+### Barra de ruta compacta i menys botons a la barra de navegació
+La barra de ruta ocupa molt menys espai, com la d'Altap Salamander, i s'han tret quatre botons que no calien.
+
+- **`src/ui/components/breadcrumb_bar.py`**: els trossos del path ja no s'estiren fins a 120 px cada un (era el que feia els "botons" grossos); ara cada tros fa l'amplada justa del seu text (18 px d'alt, separador fi). La barra s'adapta a l'amplada del panell i mostra tantes carpetes finals com hi càpiguen (unitat + `…` + finals), amb el·lipsi al mig dels noms llargs. Doble clic segueix obrint el diàleg per escriure una ruta.
+- **`src/ui/panel.py`**: eliminats els botons **Pujar un nivell**, **Enrere**, **Endavant** i **iPhone** de la barra del panell. Les dreceres continuen actives: **Backspace** (pujar), **Alt+←** / **Alt+→** (enrere/endavant).
+- **`src/toolbar_constants.py`** / **`src/core/config.py`**: tret el botó **iPhone** de la barra d'eines i de les configuracions guardades.
+- **`src/ui/components/drive_combo.py`**: la detecció d'iPhone/MTP es fa automàticament en obrir el desplegable d'unitats, sense botó dedicat.
+
+## Versió 6.9.38 - Octubre 2026
+
+### Copiar/moure des de l'iPhone
+- **`src/core/actions.py`**: bloquejat copiar/moure quan el destí és una ruta Shell/MTP (l'iPhone no és un disc escrivible). Es mostra un missatge clar: l'iPhone ha de ser el panell actiu i el disc del PC l'inactiu.
+
 ## Versió 6.9.37 - Octubre 2026
 
 ### Drag&Drop dins del mateix panell

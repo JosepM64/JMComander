@@ -112,6 +112,19 @@ class DriveCombo(QComboBox):
         return True
 
 
+    def showPopup(self):  # noqa: N802
+        """Detecta l'iPhone/MTP en obrir el desplegable d'unitats.
+
+        Des de la v6.9.39 no hi ha botó dedicat a la barra: la detecció es
+        fa aquí, de manera transparent per a l'usuari.
+        """
+        try:
+            self._add_iphone_entry()
+        except Exception:
+            logger.debug("No s'ha pogut detectar l'iPhone en obrir el combo", exc_info=True)
+        super().showPopup()
+
+
     def detect_iphone_manual(self, shell_current_path=None):
         """Força una detecció d'iPhone a demanda (usuari clica el botó).
 

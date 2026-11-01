@@ -82,7 +82,6 @@ from PySide6.QtGui import QAction, QCursor, QDesktopServices, QIcon
 from src.core.archive_handler import archive_handler
 from src.core.directory_watcher import DirectoryWatcher
 from src.core.path_history import PathHistory
-from src.toolbar_constants import TOOLBAR_DEFAULT_TOOLTIPS
 
 logger = logging.getLogger(__name__)
 
@@ -145,28 +144,10 @@ class FilePanel(QWidget):
         nav.setContentsMargins(2, 2, 2, 2)
         nav.setSpacing(2)
 
-        self.up_btn = QToolButton()
-        self.up_btn.setIcon(load_icon("mdi-arrow-up.svg", QStyle.StandardPixmap.SP_ArrowUp))
-        self.up_btn.setToolTip("Pujar un nivell (Backspace)")
-        self.up_btn.clicked.connect(self.go_up)
-        nav.addWidget(self.up_btn)
-
-        self.back_btn = QToolButton()
-        self.back_btn.setIcon(load_icon("mdi-arrow-left.svg", QStyle.StandardPixmap.SP_ArrowBack))
-        self.back_btn.setToolTip("Enrere (Alt+←)")
-        self.back_btn.clicked.connect(self.go_back)
-        self.back_btn.setEnabled(False)
-        nav.addWidget(self.back_btn)
-
-        self.forward_btn = QToolButton()
-        self.forward_btn.setIcon(
-            load_icon("mdi-arrow-right.svg", QStyle.StandardPixmap.SP_ArrowForward)
-        )
-        self.forward_btn.setToolTip("Endavant (Alt+→)")
-        self.forward_btn.clicked.connect(self.go_forward)
-        self.forward_btn.setEnabled(False)
-        nav.addWidget(self.forward_btn)
-
+        # Navegació: els botons amunt/enrere/endavant s'han tret de la barra
+        # perquè ocupaven espai (v6.9.39). Les dreceres segueixen actives:
+        # Backspace puja un nivell, Alt+← / Alt+→ van enrere/endavant, i la
+        # barra de ruta permet saltar a qualsevol carpeta amb un clic.
         if DriveCombo:
             self.drive_combo = DriveCombo()
             self.drive_combo.drive_activated.connect(self.set_path)
@@ -175,17 +156,8 @@ class FilePanel(QWidget):
                 self.current_path, force_refresh=False, include_iphone=False
             )
 
-            # Botó de detecció d'iPhone a demanda (no bloqueja l'arrancada).
-            self.iphone_btn = QToolButton()
-            self.iphone_btn.setText("iPhone")
-            self.iphone_btn.setIcon(
-                QIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon))
-            )
-            self.iphone_btn.setIconSize(QSize(16, 16))
-            self.iphone_btn.setFixedSize(QSize(44, 28))
-            self.iphone_btn.setToolTip(TOOLBAR_DEFAULT_TOOLTIPS["iphone"])
-            self.iphone_btn.clicked.connect(self._on_detect_iphone)
-            nav.addWidget(self.iphone_btn)
+            # Detecció d'iPhone: sense botó dedicat (v6.9.39). El desplegable
+            # d'unitats la fa automàticament en obrir-se.
         else:
             self.drive_combo = QComboBox()
             self.drive_combo.setFixedWidth(80)
@@ -724,9 +696,8 @@ class FilePanel(QWidget):
             self.tab_bar.update_tab(self.tab_bar.currentIndex(), path)
 
     def _push_history(self, path):
-        """P2b: Push path to history and update navigation buttons."""
+        """P2b: Push path to history (les dreceres Alt+←/→ el consulten)."""
         self._path_history.push(path)
-        self._update_history_buttons()
 
     def _reapply_root_index(self):
         """Cos compartit de _on_directory_loaded i _delayed_directory_refresh."""
@@ -1274,15 +1245,6 @@ class FilePanel(QWidget):
     def go_home(self):
         self.set_path(QDir.homePath())
 
-    def _on_detect_iphone(self):
-        """Detecció d'iPhone a demanda (usuari clica el botó de la barra de navegació)."""
-        found = self.drive_combo.detect_iphone_manual()
-        if found:
-            logger.info("iPhone/MTP detectat a demanda")
-        else:
-            logger.info("No s'ha trobat cap dispositiu iPhone/MTP")
-        return found
-
     def refresh(self, force=False):
         logger.debug("refresh() called, current_path=%s, force=%s", self, force)
         if not self.current_path:
@@ -1665,7 +1627,6 @@ class FilePanel(QWidget):
             self._path_history.set_navigating(True)
             self.set_path(path)
             self._path_history.set_navigating(False)
-            self._update_history_buttons()
 
     def go_forward(self):
         path = self._path_history.forward()
@@ -1673,11 +1634,6 @@ class FilePanel(QWidget):
             self._path_history.set_navigating(True)
             self.set_path(path)
             self._path_history.set_navigating(False)
-            self._update_history_buttons()
-
-    def _update_history_buttons(self):
-        self.back_btn.setEnabled(self._path_history.can_back)
-        self.forward_btn.setEnabled(self._path_history.can_forward)
 
     def _on_tab_path_changed(self, _index, path):
         self._tab_navigating = True

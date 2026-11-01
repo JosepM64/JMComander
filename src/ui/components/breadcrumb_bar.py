@@ -1,13 +1,14 @@
 import os
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QFontMetrics
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QSizePolicy,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -45,37 +46,46 @@ class PathInputDialog(QDialog):
 
 class BreadcrumbBar(QWidget):
     """
-    Barra de path estilo Altap Salamander:
-    - Muestra el path completo con carpetas clickeables
-    - Doble clic abre diálogo para nueva ruta
+    Barra de path compacta estilo Altap Salamander:
+    - Muestra el path con carpetas clickeables, sin botones que se estiren
+    - Se adapta al ancho disponible (unidades + … + últimas carpetas)
+    - Doble clic abre diálogo para escribir una ruta
     """
 
     path_changed = Signal(str)
-    MAX_VISIBLE_PARTS = 4
-    MAX_BUTTON_WIDTH = 120
+    BAR_HEIGHT = 22
+    BUTTON_HEIGHT = 18
+    BUTTON_PADDING = 10  # px totals (esquerra + dreta)
+    MAX_BUTTON_WIDTH = 160
+    SEPARATOR = "›"
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._current_path = ""
         self._full_parts = []
         self._cumulative_paths = []
+        self._last_width = 0
 
-        self.setContentsMargins(2, 2, 2, 2)
-        self.setFixedHeight(28)
-        self.setMinimumWidth(200)
+        self._font = QFont("Segoe UI", 9)
+        self.setFont(self._font)
+        self._fm = QFontMetrics(self._font)
+
+        self.setContentsMargins(0, 0, 0, 0)
+        self.setFixedHeight(self.BAR_HEIGHT)
+        self.setMinimumWidth(160)
 
         self._layout = QHBoxLayout(self)
         self._layout.setSpacing(0)
-        self._layout.setContentsMargins(4, 0, 4, 0)
+        self._layout.setContentsMargins(2, 0, 2, 0)
 
-        # Container para los botones
+        # Container para los botones (no se estiran: ancho = contenido)
         self._container = QWidget()
         self._container_layout = QHBoxLayout(self._container)
         self._container_layout.setSpacing(0)
         self._container_layout.setContentsMargins(0, 0, 0, 0)
+        self._container_layout.addStretch(1)
 
-        self._layout.addWidget(self._container)
-        self._layout.addStretch(0)
+        self._layout.addWidget(self._container, 1)
 
     def set_path(self, path: str):
         if path == self._current_path:
@@ -88,6 +98,15 @@ class BreadcrumbBar(QWidget):
     def path(self) -> str:
         return self._current_path
 
+    def resizeEvent(self, event):  # noqa: N802
+        super().resizeEvent(event)
+        width = event.size().width()
+        # Només reconstruïm si l'amplada canvia prou: evita rebuilds en bucle.
+        if abs(width - self._last_width) > 16:
+            self._last_width = width
+            if self._current_path:
+                self._rebuild()
+
     def _build_cumulative_paths(self, parts):
         """Construye los paths acumulativos para cada parte."""
         cumulative = []
@@ -98,18 +117,88 @@ class BreadcrumbBar(QWidget):
                 cumulative.append(os.path.join(cumulative[-1], part))
         return cumulative
 
+    def _text_width(self, text: str) -> int:
+        return min(
+            self._fm.horizontalAdvance(text) + self.BUTTON_PADDING,
+            self.MAX_BUTTON_WIDTH,
+        )
+
+    def _separator_width(self) -> int:
+        return self._fm.horizontalAdvance(self.SEPARATOR) + 2
+
     def _get_visible_parts(self):
-        """Devuelve los índices de partes visibles (inicio, ellipsis, final)."""
+        """Devuelve las partes visibles según el ancho disponible."""
         n = len(self._full_parts)
-        if n <= self.MAX_VISIBLE_PARTS:
+        if n == 0:
+            return []
+
+        available = max(self.width() - 8, 120)
+        sep = self._separator_width()
+        full_width = sum(self._text_width(p) for p in self._full_parts) + sep * (n - 1)
+        if full_width <= available:
             return list(range(n))
 
-        # Siempre mostrar primera parte (unidad), ellipsis, y últimas MAX-1 partes
-        last_count = self.MAX_VISIBLE_PARTS - 1
-        visible = [0]  # Primera parte (unidad)
-        visible.append("ellipsis")  # Marker para ellipsis
-        visible.extend(range(n - last_count, n))  # Últimas partes
-        return visible
+        # Unidad + "..." + tantes carpetes finals com càpiguen.
+        used = self._text_width(self._full_parts[0]) + self._text_width("...") + sep
+        suffix = []
+        for i in range(n - 1, 0, -1):
+            width = self._text_width(self._full_parts[i]) + sep
+            if used + width > available:
+                break
+            used += width
+            suffix.insert(0, i)
+
+        if not suffix:
+            # Ni una carpeta final hi cap: mostra almenys l'última.
+            return [0, "ellipsis", n - 1]
+        if suffix[0] == 1:
+            # No hi ha res ocult al mig: no calen els punts suspensius.
+            return [0, *suffix]
+        return [0, "ellipsis", *suffix]
+
+    def _button_style(self):
+        return """
+            QToolButton {
+                background: transparent;
+                border: none;
+                padding: 0px 4px;
+                margin: 0px;
+                color: #1a1a1a;
+            }
+            QToolButton:hover {
+                background: rgba(25, 118, 210, 55);
+                border-radius: 3px;
+            }
+            QToolButton:pressed {
+                background: rgba(25, 118, 210, 90);
+                border-radius: 3px;
+            }
+        """
+
+    def _make_button(self, text: str) -> QToolButton:
+        btn = QToolButton()
+        btn.setText(
+            self._fm.elidedText(
+                text,
+                Qt.TextElideMode.ElideMiddle,
+                self.MAX_BUTTON_WIDTH - self.BUTTON_PADDING,
+            )
+        )
+        btn.setAutoRaise(True)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setFixedHeight(self.BUTTON_HEIGHT)
+        btn.setFixedWidth(self._text_width(text))
+        btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        btn.setStyleSheet(self._button_style())
+        return btn
+
+    def _make_separator(self) -> QLabel:
+        sep = QLabel(self.SEPARATOR)
+        sep.setFixedHeight(self.BUTTON_HEIGHT)
+        sep.setFixedWidth(self._separator_width())
+        sep.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sep.setStyleSheet("color: #78909c; background: transparent;")
+        return sep
 
     def _rebuild(self):
         # Limpiar botones anteriores — desvincular visualment abans d'eliminar
@@ -121,79 +210,33 @@ class BreadcrumbBar(QWidget):
                 widget.deleteLater()
 
         if not self._current_path:
+            self._container_layout.addStretch(1)
             return
 
-        # Obtener índices de partes visibles
         visible_indices = self._get_visible_parts()
 
-        # Crear botones para partes visibles
         prev_idx = None
         for idx in visible_indices:
-            # Añadir separador antes de cada parte (excepto primera)
+            # Separador entre parts (excepte la primera)
             if prev_idx is not None:
-                if prev_idx == 0 and idx == "ellipsis":
-                    pass  # No separador antes de ellipsis si es segundo elemento
-                elif prev_idx == "ellipsis" or idx != "ellipsis":
-                    sep = QLabel("›")
-                    sep.setStyleSheet(
-                        "color: #666; font-weight: bold;"
-                        " font-family: Consolas, monospace; font-size: 10px;"
-                    )
-                    self._container_layout.addWidget(sep)
+                self._container_layout.addWidget(self._make_separator())
 
             if idx == "ellipsis":
-                # Botón ellipsis para mostrar tooltip con path completo
-                btn = QToolButton()
-                btn.setText("...")
-                btn.setAutoRaise(True)
-                btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn = self._make_button("...")
                 btn.setToolTip(self._current_path)
-                btn.setStyleSheet("""
-                    QToolButton {
-                        background: transparent;
-                        border: none;
-                        padding: 1px 2px;
-                        font-family: Consolas, monospace;
-                        font-size: 11px;
-                        font-weight: bold;
-                        color: #666;
-                    }
-                    QToolButton:hover {
-                        background: rgba(0, 100, 200, 40);
-                        border-radius: 2px;
-                    }
-                """)
-                # Click en ... muestra diálogo
                 btn.clicked.connect(self._show_path_dialog)
-                self._container_layout.addWidget(btn)
             else:
                 part = self._full_parts[idx]
                 cumulative = self._cumulative_paths[idx]
-
-                btn = QToolButton()
-                btn.setText(part)
-                btn.setAutoRaise(True)
-                btn.setCursor(Qt.CursorShape.PointingHandCursor)
-                btn.setMaximumWidth(self.MAX_BUTTON_WIDTH)
+                btn = self._make_button(part)
                 btn.setToolTip(cumulative)
-                btn.setStyleSheet("""
-                    QToolButton {
-                        background: transparent;
-                        border: none;
-                        padding: 1px 2px;
-                        font-family: Consolas, Courier New, monospace;
-                        font-size: 11px;
-                        color: #1a1a1a;
-                    }
-                    QToolButton:hover {
-                        background: rgba(0, 100, 200, 40);
-                        border-radius: 2px;
-                    }
-                """)
                 btn.clicked.connect(lambda _checked, p=cumulative: self.path_changed.emit(p))
-                self._container_layout.addWidget(btn)
 
+            self._container_layout.addWidget(btn)
             prev_idx = idx
+
+        # L'espai sobrant queda a la dreta (no estira els botons)
+        self._container_layout.addStretch(1)
 
     def _split_path(self, path):
         """Divide el path en partes."""

@@ -115,7 +115,7 @@ def _copiar_mover_a_mtp_bloqueado(ctx: ActionContext, d: object, verbo: str) -> 
         f"No se puede {verbo.lower()} directamente a un dispositivo iPhone/MTP.\n\n"
         "La ruta de destino es un espacio de nombres Shell del dispositivo "
         "(no es una unidad de disco real), por lo que la escritura directa "
-        "falla (\"medio protegido contra escritura\" o \"permiso denegado\").\n\n"
+        'falla ("medio protegido contra escritura" o "permiso denegado").\n\n'
         f"Para {verbo.lower()} archivos DESDE el iPhone al PC:\n"
         "1. Deje el panel del iPhone como PANEL ACTIVO.\n"
         "2. Seleccione los archivos y pulse Copiar/Mover.\n"

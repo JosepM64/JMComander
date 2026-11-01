@@ -108,8 +108,15 @@ class ConfigManager:
                     self.data.update(loaded)
 
                 # Asegurar que el layout tenga todos los botones disponibles
+                old_layout = loaded.get("toolbar_layout")
                 self._merge_toolbar_layout()
                 self._migrate_tooltips()
+
+                # Si la migració ha canviat el layout (p. ex. treure el botó
+                # iPhone a la v6.9.39), desar-ho perquè el fitxer no quedi
+                # amb entrades obsoletes.
+                if old_layout is not None and old_layout != self.data.get("toolbar_layout"):
+                    self.save()
 
             except Exception as e:
                 logger.exception("Error cargando config: %s", e)  # noqa: TRY401
@@ -141,6 +148,11 @@ class ConfigManager:
     def _merge_toolbar_layout(self):
         """Fusiona el layout guardado con la lista maestra para no perder botones nuevos"""
         saved = self.data.get("toolbar_layout", [])
+
+        # v6.9.39: el botó iPhone s'ha eliminat de la barra (ara la detecció
+        # es fa automàticament en obrir el desplegable d'unitats). Cal
+        # treure'l també de les configuracions antigues.
+        saved = [item for item in saved if item != "iphone"]
 
         # Si no hay layout válido, usar el maestro completo
         if not saved or len(saved) < 5:
@@ -182,18 +194,6 @@ class ConfigManager:
             if wi != pi + 1 and saved and "wezterm" not in saved:
                 new_layout.remove("wezterm")
                 new_layout.insert(new_layout.index("powershell") + 1, "wezterm")
-
-        # Botó iPhone (v6.9.29): el merge genèric l'afegiria al final (després
-        # de settings/help); recol·locar-lo abans del spacer en configs antigues
-        if (
-            "iphone" in new_layout
-            and saved
-            and "iphone" not in saved
-            and "spacer" in new_layout
-            and new_layout.index("iphone") > new_layout.index("spacer")
-        ):
-            new_layout.remove("iphone")
-            new_layout.insert(new_layout.index("spacer"), "iphone")
 
         # Botons Copiar/Mover (F5/F6): el merge genèric els afegiria al final
         # (després del spacer, a la dreta). Els col·locem al costat de
