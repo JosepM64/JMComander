@@ -13,6 +13,7 @@ from PySide6.QtCore import (
     QEvent,
     QItemSelection,
     QItemSelectionModel,
+    QModelIndex,
     QSize,
     Qt,
     QTimer,
@@ -649,7 +650,7 @@ class FilePanel(QWidget):
         if not archive_handler.is_inside_archive(self.current_path):
             QTimer.singleShot(100, self._delayed_directory_refresh)
 
-        logger.debug("set_path() took %ss", time)
+        logger.debug("set_path() took %.3fs", time.time() - _set_path_start)
 
     def _apply_to_model(self, path):
         """P2b: Set model root, proxy, and view indices for a normal directory."""
@@ -659,7 +660,13 @@ class FilePanel(QWidget):
             self.source_model.setRootPath(path)
         source_root_idx = self.source_model.index(path)
         self.proxy_model.set_current_root_source_index(source_root_idx)
-        idx = self.proxy_model.mapFromSource(source_root_idx)
+        idx = self._map_root_source_index(source_root_idx)
+        logger.debug(
+            "apply_to_model: path=%s src_valid=%s proxy_valid=%s",
+            path,
+            source_root_idx.isValid(),
+            idx.isValid(),
+        )
         for v in [self.tree, self.list, self.icon]:
             v.setRootIndex(idx)
 
@@ -701,13 +708,28 @@ class FilePanel(QWidget):
         """P2b: Push path to history (les dreceres Alt+←/→ el consulten)."""
         self._path_history.push(path)
 
+    def _map_root_source_index(self, source_idx):
+        """Mapeja l'index del directori al proxy, refiltrant si cal.
+
+        Quan es navega entre carpetes germanes, la fila de la carpeta nova pot
+        haver quedat filtrada fora del proxy: sense invalidar el filtre,
+        mapFromSource retorna un index invalid.
+        """
+        if not source_idx.isValid():
+            return QModelIndex()
+        proxy_idx = self.proxy_model.mapFromSource(source_idx)
+        if not proxy_idx.isValid():
+            self.proxy_model.invalidateFilter()
+            proxy_idx = self.proxy_model.mapFromSource(source_idx)
+        return proxy_idx
+
     def _reapply_root_index(self):
         """Cos compartit de _on_directory_loaded i _delayed_directory_refresh."""
         source_idx = self.source_model.index(self.current_path)
         if not source_idx.isValid():
             return
         self.proxy_model.set_current_root_source_index(source_idx)
-        proxy_idx = self.proxy_model.mapFromSource(source_idx)
+        proxy_idx = self._map_root_source_index(source_idx)
         if proxy_idx.isValid():
             for v in [self.tree, self.list, self.icon]:
                 v.setRootIndex(proxy_idx)
@@ -723,11 +745,67 @@ class FilePanel(QWidget):
         self._reapply_root_index()
 
     def _delayed_directory_refresh(self):
+        self._ensure_root_index()
+
+    def _root_index_ok(self):
+        """True si les tres vistes apunten realment al directori actual."""
+        if not self.current_path:
+            return False
+        current = os.path.normcase(os.path.normpath(self.current_path))
+        for view in (self.tree, self.list, self.icon):
+            root = view.rootIndex()
+            if not root.isValid():
+                return False
+            source_idx = self.proxy_model.mapToSource(root)
+            if not source_idx.isValid():
+                return False
+            file_path = self.source_model.filePath(source_idx)
+            if os.path.normcase(os.path.normpath(file_path)) != current:
+                return False
+        return True
+
+    def _ensure_root_index(self, attempt=0):
+        """Garanteix que la vista apunta al directori actual.
+
+        El proxy pot trigar a mapejar la carpeta nova. Si el root index queda
+        invalid, la vista ensenya una sola fila buida (l'arrel del model) fins
+        que l'usuari prem F5. Es reintenta uns quants cops i, com a últim
+        recurs, s'aplica el mateix refresc que fa F5.
+        """
         if not self.current_path or archive_handler.is_inside_archive(self.current_path):
             return
+        if not os.path.isdir(self.current_path):
+            # Rutes shell/MTP o carpetes desaparegudes: no s'hi pot aplicar.
+            return
+
+        path = self.current_path
+        source_idx = self.source_model.index(path)
+        if source_idx.isValid():
+            self.proxy_model.set_current_root_source_index(source_idx)
+            if not self.proxy_model.mapFromSource(source_idx).isValid():
+                self.proxy_model.invalidateFilter()
         self._reapply_root_index()
 
-    def _on_watcher_refresh(self, path):
+        if self._root_index_ok():
+            if attempt:
+                logger.info("Root index recovered for %s (attempt %s)", path, attempt)
+            return
+
+        if attempt == 5:
+            logger.warning(
+                "Root index invalid for %s after %s attempts; forcing refresh",
+                path,
+                attempt,
+            )
+            self._on_watcher_refresh(path, reschedule=False)
+            if self._root_index_ok():
+                logger.info("Root index recovered for %s after forced refresh", path)
+                return
+
+        if attempt < 15 and self.current_path == path:
+            QTimer.singleShot(100, lambda: self._ensure_root_index(attempt + 1))
+
+    def _on_watcher_refresh(self, path, reschedule=True):
         """Handle auto-refresh from DirectoryWatcher (OS watcher or polling)."""
         if not self.current_path or path != self.current_path:
             return
@@ -738,7 +816,14 @@ class FilePanel(QWidget):
         self.source_model.setRootPath(self.current_path)
         source_root_idx = self.source_model.index(self.current_path)
         self.proxy_model.set_current_root_source_index(source_root_idx)
-        idx = self.proxy_model.mapFromSource(source_root_idx)
+        idx = self._map_root_source_index(source_root_idx)
+        if not idx.isValid():
+            # No deixar mai la vista amb un root index invalid (mostraria
+            # la fila buida de l'arrel): reintentar quan el model carregui.
+            logger.warning("_on_watcher_refresh: no s'ha pogut mapejar %s", self.current_path)
+            if reschedule:
+                QTimer.singleShot(100, self._ensure_root_index)
+            return
         for v in [self.tree, self.list, self.icon]:
             v.setRootIndex(idx)
             v.viewport().update()
@@ -1253,7 +1338,7 @@ class FilePanel(QWidget):
         self.set_path(QDir.homePath())
 
     def refresh(self, force=False):
-        logger.debug("refresh() called, current_path=%s, force=%s", self, force)
+        logger.debug("refresh() called, current_path=%s, force=%s", self.current_path, force)
         if not self.current_path:
             return
         if not os.path.exists(self.current_path):

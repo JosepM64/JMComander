@@ -1,5 +1,15 @@
 # Changelog JMComander
 
+## Versió 6.9.41 - Novembre 2026
+
+### La llista ja no queda buida en clicar un marcador
+En clicar un marcador de la barra superior (per exemple **Downs**) el panell podia quedar amb una sola fila buida fins a prémer **Refrescar**, tot i que la carpeta ja era la correcta. Els fitxers hi eren, però la vista no apuntava al directori nou.
+
+- **`src/ui/panel.py`**: en navegar es recalcula el filtre del proxy si l'índex de la carpeta nova no s'hi pot mapejar (cas típic: saltar entre carpetes germanes del mateix disc, com `D:\Documents` → `D:\Descargas`).
+- Si tot i així el *root index* queda invalid, es reintenta cada 100 ms durant 1,5 s i, com a últim recurs, s'aplica el mateix refresc que fa **F5**. La vista no pot quedar-se més temps amb la fila buida de l'arrel.
+- `_on_watcher_refresh()` ja no assigna mai un índex invalid a les vistes: si el model encara no ha carregat, reintenta.
+- Corregits dos logs que mostraven l'objecte del panell i el mòdul `time` en lloc del path i els segons reals.
+
 ## Versió 6.9.40 - Novembre 2026
 
 ### Detecció de l'iPhone només en obrir el desplegable d'unitats
