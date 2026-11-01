@@ -183,8 +183,8 @@ class MainWindow(QMainWindow):
         left_path = self._validate_startup_path(self.config.get_left_path())
         right_path = self._validate_startup_path(self.config.get_right_path())
 
-        self.left_panel = FilePanel("left", left_path, detect_iphone_on_init=True)
-        self.right_panel = FilePanel("right", right_path, detect_iphone_on_init=False)
+        self.left_panel = FilePanel("left", left_path)
+        self.right_panel = FilePanel("right", right_path)
 
         self.splitter.addWidget(self.left_panel)
         self.splitter.addWidget(self.right_panel)

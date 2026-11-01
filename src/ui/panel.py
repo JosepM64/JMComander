@@ -101,14 +101,13 @@ class FilePanel(QWidget):
     delete_requested = Signal()  # Nueva señal para borrar desde el menú
     switch_panel_requested = Signal()  # Señal para cambiar al panel inactivo (tecla Tab)
 
-    def __init__(self, panel_id, initial_path=None, detect_iphone_on_init=True):
+    def __init__(self, panel_id, initial_path=None):
         super().__init__()
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         self.panel_id = panel_id
         self.current_path = initial_path or QDir.homePath()
         self.view_mode = "details"
         self.is_in_archive = False
-        self.detect_iphone_on_init = detect_iphone_on_init
         self._path_history = PathHistory()
         self._path_history.push(self.current_path)
         self._tab_navigating = False
@@ -688,7 +687,10 @@ class FilePanel(QWidget):
         shell_current_path = getattr(self, "shell_current_path", None)
         if isinstance(self.drive_combo, DriveCombo):
             self.drive_combo.update_drives(
-                path, shell_current_path=shell_current_path, force_refresh=False
+                path,
+                shell_current_path=shell_current_path,
+                force_refresh=False,
+                include_iphone=False,
             )
         elif hasattr(self, "update_drives"):
             self.update_drives(force_refresh=False)
@@ -781,8 +783,12 @@ class FilePanel(QWidget):
         if BreadcrumbBar and hasattr(self, "breadcrumb_bar"):
             self.breadcrumb_bar.set_path(f"[iPhone] {display_name}")
         if isinstance(self.drive_combo, DriveCombo):
+            # Estem dins d'una ruta Shell/MTP: aquí sí que cal l'entrada iPhone.
             self.drive_combo.update_drives(
-                self.current_path, shell_current_path=self.shell_current_path, force_refresh=True
+                self.current_path,
+                shell_current_path=self.shell_current_path,
+                force_refresh=True,
+                include_iphone=True,
             )
 
     def _populate_shell_browser(self, items):
@@ -978,6 +984,7 @@ class FilePanel(QWidget):
                 self.current_path,
                 shell_current_path=shell_current_path,
                 force_refresh=force_refresh,
+                include_iphone=False,
             )
 
     def on_path_entered(self):

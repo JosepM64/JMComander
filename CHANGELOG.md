@@ -1,5 +1,13 @@
 # Changelog JMComander
 
+## Versió 6.9.40 - Novembre 2026
+
+### Detecció de l'iPhone només en obrir el desplegable d'unitats
+- **`src/ui/components/drive_combo.py`**: `update_drives()` ja no comprova l'iPhone per defecte (`include_iphone=False`). La comprovació només es fa en obrir el desplegable (`showPopup`), de manera que no hi ha cap enumeració COM a l'arrancar, en navegar ni en canviar d'unitat.
+- **`src/ui/panel.py`**: els canvis de ruta i d'unitat passen `include_iphone=False`; només quan ja s'està dins d'una ruta Shell/MTP s'activa (perquè cal mostrar l'entrada iPhone).
+- Eliminats el paràmetre mort `detect_iphone_on_init` i el mètode `detect_iphone_manual` (sense botó dedicat des de la 6.9.39).
+- Cost real mesurat en obrir el desplegable: **~35–80 ms** la primera vegada (sense iPhone) i **~10 µs** amb la caché vàlida; la caché negativa dura 5 minuts.
+
 ## Versió 6.9.39 - Octubre 2026
 
 ### Barra de ruta compacta i menys botons a la barra de navegació

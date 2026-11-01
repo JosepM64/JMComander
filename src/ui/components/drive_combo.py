@@ -29,7 +29,7 @@ class DriveCombo(QComboBox):
         if path:
             self.drive_activated.emit(path)
 
-    def update_drives(self, current_path, shell_current_path=None, force_refresh=False, include_iphone=True):  # noqa: PLR0912
+    def update_drives(self, current_path, shell_current_path=None, force_refresh=False, include_iphone=False):  # noqa: PLR0912
         current_drive = os.path.splitdrive(current_path)[0].upper()
         if not current_drive.endswith("/") and not current_drive.endswith("\\"):
             current_drive += "/"
@@ -83,6 +83,10 @@ class DriveCombo(QComboBox):
             if norm_path == current_drive:
                 self.setCurrentIndex(self.count() - 1)
 
+        # Detecció d'iPhone opcional: per defecte NO es fa en navegar ni en
+        # canviar d'unitat (evita enumeracions COM al camí crític). Només
+        # s'activa explícitament en obrir el desplegable (showPopup) o quan
+        # ja estem dins d'una ruta Shell/MTP.
         if include_iphone:
             self._add_iphone_entry(shell_current_path, force_refresh)
 
@@ -116,18 +120,11 @@ class DriveCombo(QComboBox):
         """Detecta l'iPhone/MTP en obrir el desplegable d'unitats.
 
         Des de la v6.9.39 no hi ha botó dedicat a la barra: la detecció es
-        fa aquí, de manera transparent per a l'usuari.
+        fa aquí, de manera transparent per a l'usuari. És l'únic punt on es
+        fa la comprovació (a més de quan ja estem dins d'una ruta Shell).
         """
         try:
             self._add_iphone_entry()
         except Exception:
             logger.debug("No s'ha pogut detectar l'iPhone en obrir el combo", exc_info=True)
         super().showPopup()
-
-
-    def detect_iphone_manual(self, shell_current_path=None):
-        """Força una detecció d'iPhone a demanda (usuari clica el botó).
-
-        Retorna True si s'ha afegit l'entrada iPhone, False si no s'ha trobat cap.
-        """
-        return self._add_iphone_entry(shell_current_path, force_refresh=True)
