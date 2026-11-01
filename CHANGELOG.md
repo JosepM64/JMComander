@@ -1,5 +1,17 @@
 # Changelog JMComander
 
+## Versió 6.9.42 - Novembre 2026
+
+### Icones reals de Windows
+Fins ara tots els documents compartien una icona genèrica (una fulla per als PDF, una altra per als fitxers de l'Office, una altra per a les imatges). Ara cada fitxer mostra la **mateixa icona que l'Explorador de Windows**, de manera que es distingeixen d'un cop d'ull els PDF, els fulls de càlcul, les imatges, els vídeos, els àudio, els arxius comprimits, els executables, etc.
+
+- **`src/ui/file_icons.py`** (nou): llegeix les icones del propi Windows (`SHGetFileInfo` i la llista d'imatges del shell) i les converteix a `QIcon` amb transparència real, en 16, 32 i 48 px. Per a les miniatures grans (64 px o més) demana la versió **jumbo de 256 px**; si l'arxiu no en té (per exemple els `.zip` i `.rar`, que només en tenen de 48), es descarta i s'usa la de 48 px escalada.
+- Les carpetes especials (**Escriptori**, **Documents**, **Descàrregues**, **Imatges**, **Música**, **Vídeos**) mostren la seva icona pròpia.
+- Si el shell no està disponible, es fa servir un joc d'icones de recanvi (`QStyle`) molt més ampli que l'anterior.
+- **`src/ui/file_system_model.py`**: el model demana la icona al proveïdor segons l'extensió del fitxer i la mida demanada per la vista; les miniatures d'imatge continuen tenint prioritat.
+- **`src/ui/panel.py`**: la vista de detall i la de llista fan les icones una mica més grans (20 px) perquè es reconeguin millor; la vista d'icones usa les mides 64, 128 i 224 px amb la jumbo de 256.
+- Rendiment: la primera construcció de 17 extensions costa **~60 ms** i després cada consulta és d'**~1 µs** (tot queda en memòria cau).
+
 ## Versió 6.9.41 - Novembre 2026
 
 ### La llista ja no queda buida en clicar un marcador

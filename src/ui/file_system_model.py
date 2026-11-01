@@ -5,77 +5,13 @@ import re
 
 from PySide6.QtCore import QModelIndex, QSortFilterProxyModel, Qt
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication, QFileSystemModel, QStyle
+from PySide6.QtWidgets import QFileSystemModel
 
 from src.core.file_constants import get_extension, get_file_category, get_file_type_display
+from src.ui.file_icons import get_icon_provider
 from src.ui.thumbnails import is_image_file
 
 logger = logging.getLogger(__name__)
-
-
-def _pixmap(name: str) -> QStyle.StandardPixmap:
-    """Resol un StandardPixmap de manera tolerant (els noms canvien entre versions de Qt)."""
-    value = getattr(QStyle.StandardPixmap, name, None)
-    if value is None:
-        logger.warning("StandardPixmap '%s' no disponible; s'usa SP_FileIcon", name)
-        value = QStyle.StandardPixmap.SP_FileIcon
-    return value
-
-
-# Mapa extensió -> icona. Es construeix una sola vegada (a import) per evitar
-# reconstruir el dict a cada fitxer visible.
-_ICON_BY_EXT = {
-    ".jpg": _pixmap("SP_FileDialogContentsView"),
-    ".jpeg": _pixmap("SP_FileDialogContentsView"),
-    ".png": _pixmap("SP_FileDialogContentsView"),
-    ".gif": _pixmap("SP_FileDialogContentsView"),
-    ".bmp": _pixmap("SP_FileDialogContentsView"),
-    ".webp": _pixmap("SP_FileDialogContentsView"),
-    ".heic": _pixmap("SP_FileDialogContentsView"),
-    ".mp4": _pixmap("SP_MediaVolume"),
-    ".mkv": _pixmap("SP_MediaVolume"),
-    ".avi": _pixmap("SP_MediaVolume"),
-    ".mov": _pixmap("SP_MediaVolume"),
-    ".mp3": _pixmap("SP_MediaPlay"),
-    ".wav": _pixmap("SP_MediaPlay"),
-    ".flac": _pixmap("SP_MediaPlay"),
-    ".aac": _pixmap("SP_MediaPlay"),
-    ".zip": _pixmap("SP_FileDialogStart"),
-    ".rar": _pixmap("SP_FileDialogStart"),
-    ".7z": _pixmap("SP_FileDialogStart"),
-    ".gz": _pixmap("SP_FileDialogStart"),
-    ".tar": _pixmap("SP_FileDialogStart"),
-    ".pdf": _pixmap("SP_FileDialogDetailedView"),
-    ".doc": _pixmap("SP_FileDialogDetailedView"),
-    ".docx": _pixmap("SP_FileDialogDetailedView"),
-    ".xls": _pixmap("SP_FileDialogDetailedView"),
-    ".xlsx": _pixmap("SP_FileDialogDetailedView"),
-    ".ppt": _pixmap("SP_FileDialogDetailedView"),
-    ".pptx": _pixmap("SP_FileDialogDetailedView"),
-    ".txt": _pixmap("SP_FileDialogDetailedView"),
-    ".log": _pixmap("SP_FileDialogDetailedView"),
-    ".md": _pixmap("SP_FileDialogDetailedView"),
-    ".exe": _pixmap("SP_ComputerIcon"),
-    ".msi": _pixmap("SP_ComputerIcon"),
-    ".bat": _pixmap("SP_ComputerIcon"),
-    ".cmd": _pixmap("SP_ComputerIcon"),
-    ".py": _pixmap("SP_FileIcon"),
-    ".js": _pixmap("SP_FileIcon"),
-    ".ts": _pixmap("SP_FileIcon"),
-    ".html": _pixmap("SP_FileIcon"),
-    ".css": _pixmap("SP_FileIcon"),
-    ".json": _pixmap("SP_FileIcon"),
-    ".xml": _pixmap("SP_FileIcon"),
-}
-
-_DEFAULT_FILE_PIXMAP = QStyle.StandardPixmap.SP_FileIcon
-
-
-def _icon_for_ext(ext: str) -> QIcon:
-    """Retorna una icone estàtica per extensió (sense crides Win32)."""
-    style = QApplication.instance().style()
-    category = _ICON_BY_EXT.get(ext, _DEFAULT_FILE_PIXMAP)
-    return QIcon(style.standardIcon(category))
 
 
 def natural_sort_key(s):
@@ -84,14 +20,11 @@ def natural_sort_key(s):
     return [int(chunk) if chunk.isdigit() else chunk.lower() for chunk in re.split(r"(\d+)", s)]
 
 class ExtendedFileSystemModel(QFileSystemModel):
-    def __init__(self, parent=None, folder_icon=None, file_icon=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
         self._columns = ["Nombre", "Ext", "Tamaño", "Tipo", "Fecha", "Hora"]
         self._size_cache = {}
         self._mtime_cache = {}
-        self._icon_cache = {}   # ext_lower -> QIcon
-        self._folder_icon = folder_icon
-        self._file_icon = file_icon
         self._thumbnail_provider = None
         self._thumbnail_size = 0
         self.directoryLoaded.connect(self._on_directory_loaded)
@@ -159,36 +92,31 @@ class ExtendedFileSystemModel(QFileSystemModel):
         if not index.isValid():
             return None
 
-        # DecorationRole per columna 0: icones cachejades per extensió,
-        # evita crides Win32 SHGetFileInfo per cada fitxer visible.
+        # DecorationRole per columna 0: icones del shell de Windows, cachejades
+        # per extensió (una sola consulta per tipus de fitxer i procés).
         if role == Qt.ItemDataRole.DecorationRole and index.column() == 0:
             file_path = self.filePath(index)
             if file_path:
                 if os.path.isdir(file_path):
-                    if self._folder_icon is not None:
-                        return self._folder_icon
-                else:
-                    # Miniatura real de la imatge (vistes d'icones). Si encara no
-                    # esta llesta es mostra la icona estatica de l'extensio.
-                    if (
-                        self._thumbnail_size > 0
-                        and self._thumbnail_provider is not None
-                        and is_image_file(file_path)
-                    ):
-                        pixmap = self._thumbnail_provider.pixmap(file_path, self._thumbnail_size)
-                        if pixmap is not None:
-                            return QIcon(pixmap)
-                    ext = os.path.splitext(file_path)[1].lower()
-                    if ext not in self._icon_cache:
-                        try:
-                            self._icon_cache[ext] = _icon_for_ext(ext)
-                        except Exception as e:  # noqa: BLE001
-                            # Una icona que falla mai ha de trencar el model
-                            logger.warning("Icona per a '%s' no disponible: %s", ext, e)
-                            self._icon_cache[ext] = QIcon()
-                    return self._icon_cache[ext]
-            if self._file_icon is not None:
-                return self._file_icon
+                    return get_icon_provider().folder_icon(file_path, self._thumbnail_size)
+                # Miniatura real de la imatge (vistes d'icones). Si encara no
+                # esta llesta es mostra la icona del tipus de fitxer.
+                if (
+                    self._thumbnail_size > 0
+                    and self._thumbnail_provider is not None
+                    and is_image_file(file_path)
+                ):
+                    pixmap = self._thumbnail_provider.pixmap(file_path, self._thumbnail_size)
+                    if pixmap is not None:
+                        return QIcon(pixmap)
+                ext = os.path.splitext(file_path)[1].lower()
+                try:
+                    return get_icon_provider().file_icon(ext, self._thumbnail_size)
+                except Exception as e:  # noqa: BLE001
+                    # Una icona que falla mai ha de trencar el model
+                    logger.warning("Icona per a '%s' no disponible: %s", ext, e)
+                    return QIcon()
+            return get_icon_provider().file_icon("", self._thumbnail_size)
 
         column = index.column()
         file_path = self.filePath(index)

@@ -50,6 +50,7 @@ from PySide6.QtWidgets import (
 
 from src.assets.icon_utils import load_icon
 from src.core.mtp_handler import get_shell_display_name, list_shell_folder, open_shell_file
+from src.ui.file_icons import get_icon_provider
 from src.ui.file_system_model import ExtendedFileSystemModel, FileSystemProxyModel
 from src.ui.thumbnails import get_thumbnail_provider
 
@@ -78,7 +79,7 @@ try:
 except ImportError:
     FolderTabBar = None
 
-from PySide6.QtGui import QAction, QCursor, QDesktopServices, QIcon
+from PySide6.QtGui import QAction, QCursor, QDesktopServices
 
 from src.core.archive_handler import archive_handler
 from src.core.directory_watcher import DirectoryWatcher
@@ -263,6 +264,10 @@ class FilePanel(QWidget):
         self._setup_view(self.list)
         self._setup_view(self.icon)
         self.icon.setViewMode(QListView.ViewMode.IconMode)
+        # La vista de detall i la de llista amb icones una mica més grans, per
+        # distingir millor els tipus de fitxer.
+        for view in (self.tree, self.list):
+            view.setIconSize(QSize(20, 20))
         self.icon.setIconSize(QSize(ICON_SIZE_BY_MODE["icons"], ICON_SIZE_BY_MODE["icons"]))
         # La vista d'icones ha de poder mostrar miniatures de mides diferents
         self.icon.setUniformItemSizes(False)
@@ -298,12 +303,10 @@ class FilePanel(QWidget):
             self.shell_browser.viewport().installEventFilter(self)
             self.shell_browser.installEventFilter(self)
 
-        self.folder_icon = QIcon(
-            self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon)
-        )
-        self.file_icon = QIcon(
-            self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon)
-        )
+        # Icones del mateix tipus que l'Explorador de Windows (per extensió).
+        provider = get_icon_provider()
+        self.folder_icon = provider.folder_icon()
+        self.file_icon = provider.file_icon("")
 
         views = [self.tree, self.list, self.icon, self.archive_browser]
         if self.shell_browser:
@@ -318,11 +321,7 @@ class FilePanel(QWidget):
         logger.debug("=== FilePanel.setup_model START ===")
         _start_time = time.time()
 
-        self.source_model = ExtendedFileSystemModel(
-            parent=self,
-            folder_icon=self.folder_icon,
-            file_icon=self.file_icon,
-        )
+        self.source_model = ExtendedFileSystemModel(parent=self)
         self.source_model.setReadOnly(False)
         self.source_model.directoryLoaded.connect(self._on_directory_loaded)
         # Miniatures reals d'imatge per a les vistes d'icones (proveidor compartit)
@@ -1761,3 +1760,4 @@ class FilePanel(QWidget):
         self.inline_progress_bar.setValue(0)
         self.inline_cancel_btn.setEnabled(False)
         self.inline_progress_label.setText("")
+
