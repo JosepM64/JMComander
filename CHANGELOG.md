@@ -1,5 +1,17 @@
 # Changelog JMComander
 
+## Versió 6.9.52 - Novembre 2026
+
+### L'ajuda ràpida ja és opaca
+
+Des que el diàleg d'ajuda ràpida (F1) és un element de la finestra (v6.9.49, per
+evitar que el gestor de finestres el mogués), el seu fons era transparent i es
+veia el contingut dels panells a través del text.
+
+- **`src/ui/dialogs/quick_help.py`**: el diàleg ara pinta el seu propi fons
+  (`setAutoFillBackground(True)` + `QPalette` amb blanc sòlid), de manera que el
+  text es llegeix net i no es barreja amb la llista de fitxers de sota.
+
 ## Versió 6.9.51 - Novembre 2026
 
 ### El menú d'ajuda (F1) s'ancora al botó ?

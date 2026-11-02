@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QColor, QFont, QPalette
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
@@ -103,6 +103,12 @@ class QuickHelpDialog(QDialog):
         # dins de la finestra i cap gestor de finestres no el pot repositionar.
         self.setWindowFlags(Qt.WindowType.Widget)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+        # Fons opac: com a widget fill, QDialog no pinta el fons per si sol i
+        # es veuria el contingut dels panells de sota.
+        self.setAutoFillBackground(True)
+        pal = self.palette()
+        pal.setColor(QPalette.ColorRole.Window, QColor("white"))
+        self.setPalette(pal)
         self.setMinimumSize(360, 260)
         self.setMaximumSize(600, 600)
         self.resize(520, 480)
