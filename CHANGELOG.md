@@ -1,5 +1,14 @@
 # Changelog JMComander
 
+## Versió 6.9.48 - Novembre 2026
+
+### El diàleg d'ajuda s'adapta a la mida estàndard de la finestra
+
+La finestra arrenca amb una mida estàndard de **1200x450** (centrada i limitada a la pantalla), però el diàleg d'ajuda tenia una alçada mínima de **480 px**: no hi cabia i acabava sortint de la finestra.
+
+- **`src/ui/dialogs/quick_help.py`**: mida mínima reduïda a **360x260** i mida preferida 520x480; `show_near_button()` ajusta amplada i alçada a la finestra pare i a l'àrea visible (mai més gran que cap de les dues) i col·loca el diàleg **centrat sobre la finestra**, amb *clamp* a la pantalla en els dos eixos.
+- **`src/version.py`**: 6.9.47 -> 6.9.48.
+
 ## Versió 6.9.47 - Novembre 2026
 
 ### La finestra d'ajuda funciona a qualsevol pantalla

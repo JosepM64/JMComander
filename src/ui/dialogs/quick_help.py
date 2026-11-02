@@ -101,9 +101,10 @@ class QuickHelpDialog(QDialog):
         self.setWindowTitle("Ajuda rapida")
         self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
-        self.setMinimumSize(520, 480)
+        self.setMinimumSize(360, 260)
         self.setMaximumSize(600, 600)
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.resize(520, 480)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self._setup_ui()
 
     def _setup_ui(self):
@@ -171,11 +172,12 @@ class QuickHelpDialog(QDialog):
             super().keyPressEvent(event)
 
     def show_near_button(self, button=None):
-        """Mostra el diàleg dins la finestra pare, centrat a la part superior.
+        """Mostra el diàleg dins la finestra pare, adaptat a qualsevol pantalla.
 
-        Funciona amb qualsevol resolució, escala DPI i pantalla múltiple: es
-        calcula la posició amb la mida real del diàleg i es limita a l'àrea
-        visible de la pantalla on hi ha la finestra pare.
+        La mida s'ajusta a la finestra pare i a l'àrea visible (mai més gran
+        que cap de les dues) i, per defecte, es col·loca centrat sobre la
+        finestra. Així funciona amb la mida estàndard d'arrencada (1200x450),
+        amb portàtils, amb qualsevol DPI i amb pantalles múltiples.
         """
         anchor = button if button is not None else self.parentWidget()
         if anchor is None:
@@ -185,17 +187,20 @@ class QuickHelpDialog(QDialog):
 
         window = anchor.window()
         self.ensurePolished()
-        self.adjustSize()
-        width, height = self.width(), self.height()
-
         geo = window.frameGeometry()
         screen = QGuiApplication.screenAt(geo.center()) or window.screen() or self.screen()
         avail = screen.availableGeometry() if screen is not None else geo
 
+        # Mida adaptativa: preferida 520x480, però sempre dins de la finestra i pantalla
+        max_w = max(self.minimumWidth(), min(geo.width() - 32, avail.width() - 16))
+        max_h = max(self.minimumHeight(), min(geo.height() - 32, avail.height() - 16))
+        width = min(520, max_w)
+        height = min(480, max_h)
+        self.resize(width, height)
+
         if anchor is window:
-            # Finestra principal: centrat horitzontalment, una mica per sota del topall
             x = geo.center().x() - width // 2
-            y = geo.top() + 60
+            y = geo.center().y() - height // 2
         else:
             pos = anchor.mapToGlobal(anchor.rect().bottomLeft())
             x, y = pos.x(), pos.y()
