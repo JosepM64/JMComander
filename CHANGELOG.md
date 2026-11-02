@@ -1,5 +1,13 @@
 # Changelog JMComander
 
+## Versió 6.9.45 - Novembre 2026
+
+### Botó iPhone sense duplicat i neteja de codi orfe
+
+- **`src/ui/panel.py`**: tret el botó iPhone **duplicat** de la barra de navegació (es queda només el de la barra d'eines); la icona és `mdi-cellphone` amb `ToolButtonTextBesideIcon` i sense mida fixa. També s'ha tret l'import no utilitzat `TOOLBAR_DEFAULT_TOOLTIPS` (F401).
+- **`src/ui/main_window.py`**: **F3** passa per `_run_action("quick_look")` (abans l'acció del registre quedava òrfena); el botó **Ajuda** (F1) obre un menú amb *Ajuda ràpida* i *Acerca de JMComander* (abans la cadena `about` era inabastable).
+- **`src/core/actions.py`**: eliminades l'acció `exit` i `_exit_app` (Alt+F4 ja tanca la finestra); eliminats els handlers morts `_run_compare_dirs`/`_run_organize` i les accions duplicades `plugin_compare`, `plugin_multi_rename` i `plugin_organize` (els plugins ja es registren des del `plugin.json`).
+
 ## Versió 6.9.44 - Novembre 2026
 
 ### Botó d'iPhone tornat a posar (detecció a demanda)

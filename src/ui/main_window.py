@@ -304,7 +304,8 @@ class MainWindow(QMainWindow):
     def _init_quicklook_shortcut(self):
         self.action_toggle_quicklook = QAction("Quick Look", self)
         self.action_toggle_quicklook.setShortcut("F3")
-        self.action_toggle_quicklook.triggered.connect(self.toggle_quick_look)
+        # F3 passa pel registre d'accions (abans l'acció 'quick_look' quedava òrfena)
+        self.action_toggle_quicklook.triggered.connect(lambda: self._run_action("quick_look"))
         self.addAction(self.action_toggle_quicklook)
 
     def _startup_refresh(self):
@@ -418,7 +419,7 @@ class MainWindow(QMainWindow):
             self.icon_loader.load_icon("mdi-help-circle", "?"), "Ajuda", self
         )
         self.actions_map["help"].setShortcut(QKeySequence("F1"))
-        self.actions_map["help"].triggered.connect(self.show_quick_help)
+        self.actions_map["help"].triggered.connect(self._show_help_menu)
         # F1 ha de funcionar encara que l'usuari tregui "help" de la barra
         self.addAction(self.actions_map["help"])
 
@@ -943,6 +944,13 @@ class MainWindow(QMainWindow):
 
     def edit_file(self):
         self._run_action("edit_file")
+
+    def _show_help_menu(self):
+        """Menú d'ajuda: ajuda ràpida i Acerca de (abans l'acció 'about' era inabastable)."""
+        menu = QMenu(self)
+        menu.addAction("Ajuda ràpida (F1)", self.show_quick_help)
+        menu.addAction("Acerca de JMComander", lambda: self._run_action("about"))
+        menu.exec()
 
     def show_quick_help(self):
         from src.ui.dialogs.quick_help import QuickHelpDialog  # noqa: PLC0415

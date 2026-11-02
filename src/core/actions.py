@@ -21,8 +21,6 @@ from PySide6.QtWidgets import QDialog, QInputDialog, QMessageBox
 
 from src.core.fs_utils import get_locked_paths
 from src.core.terminal import open_wezterm
-from src.plugins.compare_dirs.main import compare_dirs
-from src.plugins.organizer.main import run_organizer
 
 logger = logging.getLogger(__name__)
 
@@ -370,12 +368,6 @@ def _copy_path(ctx: ActionContext):
     ctx.active_panel.copy_path_to_clipboard()
 
 
-def _exit_app(ctx: ActionContext):
-    """Tanca l'aplicació (equivalent a Alt+F4)."""
-    if ctx.parent is not None:
-        ctx.parent.close()
-
-
 def _rename(ctx: ActionContext):
     """Reanomena l'element seleccionat (F2)."""
     if not ctx.active_panel.get_selected_paths():
@@ -439,17 +431,6 @@ def _quick_look(ctx: ActionContext):
         ctx.parent.toggle_quick_look()
 
 
-# === Handlers per a plugins ===
-
-
-def _run_compare_dirs(api):
-    compare_dirs(api)
-
-
-def _run_organize(api):
-    run_organizer(api)
-
-
 # === Registre ===
 
 
@@ -504,17 +485,6 @@ def register_core_actions():
             category=ActionCategory.FILE.value,
             order=5,
             handler=_copy_path,
-        )
-    )
-    action_registry.register(
-        Action(
-            id="exit",
-            name="Salir",
-            icon="mdi-exit-to-app",
-            shortcut="Alt+F4",
-            category=ActionCategory.FILE.value,
-            order=99,
-            handler=_exit_app,
         )
     )
     action_registry.register(
@@ -711,35 +681,6 @@ def register_core_actions():
             category=ActionCategory.PANELS.value,
             order=4,
             handler=_sync_dirs,
-        )
-    )
-    action_registry.register(
-        Action(
-            id="plugin_compare",
-            name="Comparar directorios",
-            icon="mdi-compare",
-            handler=_run_compare_dirs,
-            category=ActionCategory.PLUGINS.value,
-            order=1,
-        )
-    )
-    action_registry.register(
-        Action(
-            id="plugin_multi_rename",
-            name="Renombrado múltiple",
-            icon="mdi-format-list-checks",
-            category=ActionCategory.PLUGINS.value,
-            order=2,
-        )
-    )
-    action_registry.register(
-        Action(
-            id="plugin_organize",
-            name="Organizar archivos",
-            icon="mdi-folder-sync",
-            handler=_run_organize,
-            category=ActionCategory.PLUGINS.value,
-            order=3,
         )
     )
     action_registry.register(

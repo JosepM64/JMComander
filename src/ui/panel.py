@@ -79,12 +79,11 @@ try:
 except ImportError:
     FolderTabBar = None
 
-from PySide6.QtGui import QAction, QCursor, QDesktopServices, QIcon
+from PySide6.QtGui import QAction, QCursor, QDesktopServices
 
 from src.core.archive_handler import archive_handler
 from src.core.directory_watcher import DirectoryWatcher
 from src.core.path_history import PathHistory
-from src.toolbar_constants import TOOLBAR_DEFAULT_TOOLTIPS
 
 logger = logging.getLogger(__name__)
 
@@ -158,18 +157,6 @@ class FilePanel(QWidget):
                 self.current_path, force_refresh=False, include_iphone=False
             )
 
-            # Botó de detecció d'iPhone a demanda (no bloqueja l'arrancada).
-            # Força la reenumeració de unitats amb detecció d'iPhone/MTP.
-            self.iphone_btn = QToolButton()
-            self.iphone_btn.setText("iPhone")
-            self.iphone_btn.setIcon(
-                QIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon))
-            )
-            self.iphone_btn.setIconSize(QSize(16, 16))
-            self.iphone_btn.setFixedSize(QSize(44, 28))
-            self.iphone_btn.setToolTip(TOOLBAR_DEFAULT_TOOLTIPS["iphone"])
-            self.iphone_btn.clicked.connect(self._on_detect_iphone)
-            nav.addWidget(self.iphone_btn)
         else:
             self.drive_combo = QComboBox()
             self.drive_combo.setFixedWidth(80)
@@ -1357,15 +1344,6 @@ class FilePanel(QWidget):
                 include_iphone=True,
             )
         return False
-
-    def _on_detect_iphone(self):
-        """Detecció iPhone/MTP a demanda (usuari clica el botó de la barra de navegació)."""
-        found = self.refresh_iphone()
-        if found:
-            logger.info("iPhone/MTP detectat a demanda")
-        else:
-            logger.info("No s'ha trobat cap dispositiu iPhone/MTP")
-        return found
 
     def refresh(self, force=False):
         logger.debug("refresh() called, current_path=%s, force=%s", self.current_path, force)
