@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QDialog,
@@ -170,15 +170,39 @@ class QuickHelpDialog(QDialog):
         else:
             super().keyPressEvent(event)
 
-    def show_near_button(self, button):
-        pos = button.mapToGlobal(button.rect().bottomLeft())
-        screen = self.screen()
-        if screen:
-            screen_geom = screen.availableGeometry()
-            if pos.x() + self.width() > screen_geom.right():
-                pos.setX(screen_geom.right() - self.width() - 10)
-            if pos.y() + self.height() > screen_geom.bottom():
-                pos.setY(button.mapToGlobal(button.rect().topLeft()).y() - self.height())
+    def show_near_button(self, button=None):
+        """Mostra el diàleg a prop del widget indicat, sempre dins de la pantalla.
+
+        Si `button` és la finestra principal (no un botó) es col·loca a la
+        cantonada superior dreta de la finestra; si és un botó, just a sota.
+        """
+        self.adjustSize()
+        anchor = button if button is not None else self.parentWidget()
+        if anchor is None:
+            self.show()
+            self.setFocus()
+            return
+
+        window = anchor.window()
+        if anchor is window:
+            # Finestra principal: cantonada superior dreta, dins de la finestra
+            geo = window.frameGeometry()
+            pos = QPoint(geo.right() - self.width() - 16, geo.top() + 48)
+        else:
+            pos = anchor.mapToGlobal(anchor.rect().bottomLeft())
+
+        screen = window.screen() or self.screen()
+        if screen is not None:
+            avail = screen.availableGeometry()
+            if pos.x() + self.width() > avail.right():
+                pos.setX(avail.right() - self.width() - 8)
+            if pos.x() < avail.left():
+                pos.setX(avail.left() + 8)
+            if pos.y() + self.height() > avail.bottom():
+                pos.setY(avail.bottom() - self.height() - 8)
+            if pos.y() < avail.top():
+                pos.setY(avail.top() + 8)
+
         self.move(pos)
         self.show()
         self.setFocus()

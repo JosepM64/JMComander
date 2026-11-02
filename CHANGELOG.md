@@ -1,5 +1,14 @@
 # Changelog JMComander
 
+## Versió 6.9.46 - Novembre 2026
+
+### La finestra d'ajuda s'obre dins de la finestra del programa
+
+En clicar el botó **?** (Ajuda) el diàleg s'obria a la cantonada inferior esquerra de la finestra i, amb la finestra gran o maximitzada, acabava a l'extrem de la pantalla, lluny del programa.
+
+- **`src/ui/dialogs/quick_help.py`**: `show_near_button()` ara col·loca el diàleg a la **cantonada superior dreta** de la finestra principal (o just sota del botó, quan l'àncora és un botó), amb `adjustSize()` previ i *clamp* a l'àrea visible de la pantalla en els dos eixos.
+- **`src/version.py`**: 6.9.45 -> 6.9.46.
+
 ## Versió 6.9.45 - Novembre 2026
 
 ### Botó iPhone sense duplicat i neteja de codi orfe
