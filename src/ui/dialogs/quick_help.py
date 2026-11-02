@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QGuiApplication
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
@@ -99,7 +99,9 @@ class QuickHelpDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Ajuda rapida")
-        self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
+        # Widget fill (no finestra independent): es comporta com un desplegable
+        # dins de la finestra i cap gestor de finestres no el pot repositionar.
+        self.setWindowFlags(Qt.WindowType.Widget)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
         self.setMinimumSize(360, 260)
         self.setMaximumSize(600, 600)
@@ -172,45 +174,40 @@ class QuickHelpDialog(QDialog):
             super().keyPressEvent(event)
 
     def show_near_button(self, button=None):
-        """Mostra el diàleg dins la finestra pare, adaptat a qualsevol pantalla.
+        """Mostra el diàleg com un desplegable DINS de la finestra pare.
 
-        La mida s'ajusta a la finestra pare i a l'àrea visible (mai més gran
-        que cap de les dues) i, per defecte, es col·loca centrat sobre la
-        finestra. Així funciona amb la mida estàndard d'arrencada (1200x450),
-        amb portàtils, amb qualsevol DPI i amb pantalles múltiples.
+        És un widget fill (Qt.Widget), no una finestra: la posició és relativa
+        a la finestra i cap gestor de finestres no la pot moure. S'ajusta a la
+        mida de la finestra i s'ancora a la dreta, sota la barra d'eines.
         """
         anchor = button if button is not None else self.parentWidget()
-        if anchor is None:
+        window = anchor.window() if anchor is not None else None
+        if window is None:
             self.show()
             self.setFocus()
             return
 
-        window = anchor.window()
         self.ensurePolished()
-        geo = window.frameGeometry()
-        screen = QGuiApplication.screenAt(geo.center()) or window.screen() or self.screen()
-        avail = screen.availableGeometry() if screen is not None else geo
 
-        # Mida adaptativa: preferida 520x480, però sempre dins de la finestra i pantalla
-        max_w = max(self.minimumWidth(), min(geo.width() - 32, avail.width() - 16))
-        max_h = max(self.minimumHeight(), min(geo.height() - 32, avail.height() - 16))
-        width = min(520, max_w)
-        height = min(480, max_h)
+        # Mida adaptativa dins la finestra (mai més gran que la finestra)
+        width = max(self.minimumWidth(), min(520, window.width() - 32))
+        height = max(self.minimumHeight(), min(480, window.height() - 72))
         self.resize(width, height)
 
         if anchor is window:
-            x = geo.center().x() - width // 2
-            y = geo.center().y() - height // 2
+            # Desplegable a la dreta, sota la barra d'eines
+            x = window.width() - self.width() - 16
+            y = 52
         else:
-            pos = anchor.mapToGlobal(anchor.rect().bottomLeft())
-            x, y = pos.x(), pos.y()
+            pos = anchor.mapTo(window, anchor.rect().bottomLeft())
+            x = pos.x()
+            y = pos.y() + 4
 
-        # Limit a l'àrea visible (qualsevol pantalla i qualsevol DPI)
-        x = max(avail.left() + 8, min(x, avail.right() - width - 8))
-        y = max(avail.top() + 8, min(y, avail.bottom() - height - 8))
+        # Dins la finestra (coordenades del pare)
+        x = max(8, min(x, window.width() - self.width() - 8))
+        y = max(8, min(y, window.height() - self.height() - 8))
 
         self.move(x, y)
         self.show()
-        self.move(x, y)  # el sistema pot ajustar la posició en crear la finestra
         self.raise_()
         self.setFocus()

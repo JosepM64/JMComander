@@ -1,5 +1,14 @@
 # Changelog JMComander
 
+## Versió 6.9.49 - Novembre 2026
+
+### L'ajuda ja no és una finestra: és un desplegable dins del programa
+
+El diàleg d'ajuda continuava apareixent a l'extrem de la pantalla perquè era una **finestra independent** i el gestor de finestres de Windows la reposicionava pel seu compte (ni `Qt.Popup` ni `Qt.Tool` respectaven la posició).
+
+- **`src/ui/dialogs/quick_help.py`**: el diàleg passa a ser un **widget fill** (`Qt.Widget`) de la finestra principal: la posició és relativa a la finestra, no pot sortir-ne i es comporta com un desplegable (s'ancora a la dreta, sota la barra d'eines; o just sota del botó quan l'àncora és un botó). La mida s'ajusta a la finestra (mínim 360×260, preferit 520×480).
+- **`src/version.py`**: 6.9.48 -> 6.9.49.
+
 ## Versió 6.9.48 - Novembre 2026
 
 ### El diàleg d'ajuda s'adapta a la mida estàndard de la finestra
