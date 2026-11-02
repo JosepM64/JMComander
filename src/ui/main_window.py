@@ -5,8 +5,8 @@ import sys
 from functools import partial
 from pathlib import Path
 
-from PySide6.QtCore import QRect, QSize, Qt, QTimer
-from PySide6.QtGui import QAction, QFont, QIcon, QKeySequence
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, QTimer
+from PySide6.QtGui import QAction, QCursor, QFont, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -950,7 +950,16 @@ class MainWindow(QMainWindow):
         menu = QMenu(self)
         menu.addAction("Ajuda ràpida (F1)", self.show_quick_help)
         menu.addAction("Acerca de JMComander", lambda: self._run_action("about"))
-        menu.exec()
+        # Ancorar el menú al botó "?" de la barra d'eines (no a la posició del
+        # ratolí: amb F1 el cursor pot ser a qualsevol cantonada de la pantalla).
+        btn = None
+        help_act = self.actions_map.get("help")
+        if help_act is not None:
+            btn = self.main_toolbar.widgetForAction(help_act)
+        if btn is not None:
+            menu.exec(btn.mapToGlobal(QPoint(0, btn.height())))
+        else:
+            menu.exec(QCursor.pos())
 
     def show_quick_help(self):
         from src.ui.dialogs.quick_help import QuickHelpDialog  # noqa: PLC0415

@@ -1,5 +1,13 @@
 # Changelog JMComander
 
+## Versió 6.9.51 - Novembre 2026
+
+### El menú d'ajuda (F1) s'ancora al botó ?
+
+En prémer **F1** (o obrir el menú d'ajuda) el menú apareixia a la cantonada superior esquerra de la pantalla: `menu.exec()` sense posició el col·locava a la posició del ratolí, que amb el teclat pot ser qualsevol lloc.
+
+- **`src/ui/main_window.py`**: `_show_help_menu()` ara localitza el `QToolButton` de l'acció `help` a la barra d'eines (mateix mecanisme que el diàleg des de la v6.9.50) i obre el menú just a sota del botó `?`. Sense botó, cau a la posició del cursor.
+
 ## Versió 6.9.50 - Novembre 2026
 
 ### L'ajuda s'ancla al boto ? de la barra d'eines
