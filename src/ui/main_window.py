@@ -957,13 +957,17 @@ class MainWindow(QMainWindow):
 
         if not hasattr(self, "_quick_help_dialog"):
             self._quick_help_dialog = QuickHelpDialog(self)
-        sender = self.sender()
-        if isinstance(sender, QAction):
-            for w in self.main_toolbar.findChildren(QToolButton):
-                if self.main_toolbar.widgetForAction(sender) == w:
-                    self._quick_help_dialog.show_near_button(w)
-                    return
-        self._quick_help_dialog.show_near_button(self)
+        # Ancorar al boto "?" de la barra d'eines (no al centre de la finestra),
+        # perque la finestra maximitzada ompli tota la pantalla i un anclatge al
+        # centre apareix a l'esquina superior esquerra.
+        btn = None
+        help_act = self.actions_map.get("help")
+        if help_act is not None:
+            btn = self.main_toolbar.widgetForAction(help_act)
+        if btn is not None:
+            self._quick_help_dialog.show_near_button(btn)
+        else:
+            self._quick_help_dialog.show_near_button(self)
 
     def show_about_dialog(self):
         deps_info = "<br>".join([f"<b>{k}:</b> {v}" for k, v in __dependencies__.items()])

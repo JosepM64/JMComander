@@ -1,5 +1,14 @@
 # Changelog JMComander
 
+## Versió 6.9.50 - Novembre 2026
+
+### L'ajuda s'ancla al boto ? de la barra d'eines
+
+En clicar ? el diàleg apareixia a l'esquina superior esquerra de la pantalla quan la finestra estava maximitzada: el sender era una QAction del menu (sense QToolButton associat) i caia a l'anclatge al centre de la finestra.
+
+- **`src/ui/main_window.py`**: `show_quick_help()` cerca el QToolButton de l'acció `help` a `actions_map` i ancora el desplegable al boto `?` de la barra d'eines (dreta superior), no al centre de la finestra.
+- **`src/version.py`**: 6.9.49 -> 6.9.50.
+
 ## Versió 6.9.49 - Novembre 2026
 
 ### L'ajuda ja no és una finestra: és un desplegable dins del programa
