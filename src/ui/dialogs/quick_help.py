@@ -1,5 +1,5 @@
-from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont, QGuiApplication
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
@@ -99,7 +99,7 @@ class QuickHelpDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Ajuda rapida")
-        self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
         self.setMinimumSize(520, 480)
         self.setMaximumSize(600, 600)
@@ -171,12 +171,12 @@ class QuickHelpDialog(QDialog):
             super().keyPressEvent(event)
 
     def show_near_button(self, button=None):
-        """Mostra el diàleg a prop del widget indicat, sempre dins de la pantalla.
+        """Mostra el diàleg dins la finestra pare, centrat a la part superior.
 
-        Si `button` és la finestra principal (no un botó) es col·loca a la
-        cantonada superior dreta de la finestra; si és un botó, just a sota.
+        Funciona amb qualsevol resolució, escala DPI i pantalla múltiple: es
+        calcula la posició amb la mida real del diàleg i es limita a l'àrea
+        visible de la pantalla on hi ha la finestra pare.
         """
-        self.adjustSize()
         anchor = button if button is not None else self.parentWidget()
         if anchor is None:
             self.show()
@@ -184,25 +184,28 @@ class QuickHelpDialog(QDialog):
             return
 
         window = anchor.window()
+        self.ensurePolished()
+        self.adjustSize()
+        width, height = self.width(), self.height()
+
+        geo = window.frameGeometry()
+        screen = QGuiApplication.screenAt(geo.center()) or window.screen() or self.screen()
+        avail = screen.availableGeometry() if screen is not None else geo
+
         if anchor is window:
-            # Finestra principal: cantonada superior dreta, dins de la finestra
-            geo = window.frameGeometry()
-            pos = QPoint(geo.right() - self.width() - 16, geo.top() + 48)
+            # Finestra principal: centrat horitzontalment, una mica per sota del topall
+            x = geo.center().x() - width // 2
+            y = geo.top() + 60
         else:
             pos = anchor.mapToGlobal(anchor.rect().bottomLeft())
+            x, y = pos.x(), pos.y()
 
-        screen = window.screen() or self.screen()
-        if screen is not None:
-            avail = screen.availableGeometry()
-            if pos.x() + self.width() > avail.right():
-                pos.setX(avail.right() - self.width() - 8)
-            if pos.x() < avail.left():
-                pos.setX(avail.left() + 8)
-            if pos.y() + self.height() > avail.bottom():
-                pos.setY(avail.bottom() - self.height() - 8)
-            if pos.y() < avail.top():
-                pos.setY(avail.top() + 8)
+        # Limit a l'àrea visible (qualsevol pantalla i qualsevol DPI)
+        x = max(avail.left() + 8, min(x, avail.right() - width - 8))
+        y = max(avail.top() + 8, min(y, avail.bottom() - height - 8))
 
-        self.move(pos)
+        self.move(x, y)
         self.show()
+        self.move(x, y)  # el sistema pot ajustar la posició en crear la finestra
+        self.raise_()
         self.setFocus()

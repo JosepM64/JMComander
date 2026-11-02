@@ -1,5 +1,14 @@
 # Changelog JMComander
 
+## Versió 6.9.47 - Novembre 2026
+
+### La finestra d'ajuda funciona a qualsevol pantalla
+
+El diàleg d'ajuda es col·locava malament perquè era una finestra `Qt.Popup`: el sistema la reposiciona pel seu compte i ignorava `move()`.
+
+- **`src/ui/dialogs/quick_help.py`**: el diàleg passa a `Qt.Tool | FramelessWindowHint` (finestra sense marc que sí respecta la posició); el càlcul usa la mida real (`ensurePolished` + `adjustSize`), la pantalla on és la finestra pare (`QGuiApplication.screenAt`) i limita la posició a l'àrea visible en els dos eixos. Es col·loca centrat horitzontalment sobre la finestra, 60 px per sota del topall.
+- **`src/version.py`**: 6.9.46 -> 6.9.47.
+
 ## Versió 6.9.46 - Novembre 2026
 
 ### La finestra d'ajuda s'obre dins de la finestra del programa
