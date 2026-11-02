@@ -1,5 +1,15 @@
 # Changelog JMComander
 
+## Versió 6.9.43 - Novembre 2026
+
+### Modes de visualització independents per panell
+
+Fins ara el mode de visualització (**Detalls / Llista / Iconos P / Iconos G / Iconos XL**) es aplicava als dos panells i es recordava com a valor únic (`view_mode` global).
+
+- Ara cada panell té el seu propi mode: es desa un valor per panell a `view_modes` (`left` / `right`) i sense valor explícit es fa servir el mode global com a paràmetre per defecte.
+- La barre de menú **Vista** aplica l'opció al **panell actiu**; per aplicar a tots els panells es fa servir el mateix selector sobre el panell desitjat (o canviar primer el mode global).
+- El mode global (`view_mode`) continua sent el valor per defecte de tots els panells quan no hi ha override per panell.
+
 ## Versió 6.9.42 - Novembre 2026
 
 ### Icones reals de Windows

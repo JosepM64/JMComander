@@ -202,10 +202,13 @@ class MainWindow(QMainWindow):
         self.active_panel = self.left_panel
         self.inactive_panel = self.right_panel
 
-        # Mode de visualització desat (amb miniatures si és un mode d'icones)
-        self.view_mode = self.config.get_view_mode()
-        for panel in (self.left_panel, self.right_panel):
-            panel.set_view_mode(self.view_mode)
+        # Modes de visualització independents per panell (amb miniatures si és un mode d'icones)
+        self.view_modes = {"left": "details", "right": "details"}
+        for panel_id, panel in (("left", self.left_panel), ("right", self.right_panel)):
+            mode = self.config.get_view_mode(panel_id)
+            self.view_modes[panel_id] = mode
+            panel.set_view_mode(mode)
+        self.view_mode = self.view_modes.get(self.active_panel.panel_id, "details")
 
     def _init_background_progress(self):
         self.bg_progress_frame = QFrame()
@@ -882,20 +885,27 @@ class MainWindow(QMainWindow):
             ("Iconos G", "icons_large"),
             ("Iconos XL", "icons_xl"),
         ]:
-            menu.addAction(n, partial(self.set_view_mode, m))
+            # Cada opció aplica el mode al panell actiu (independient per panell)
+            menu.addAction(n, partial(self.set_view_mode, m, self.active_panel.panel_id))
         if hasattr(self, "btn_view_mode"):
             self.btn_view_mode.setMenu(menu)
 
-    def set_view_mode(self, mode):
-        """Aplica el mode de visualització als dos panells i el recorda.
+    def set_view_mode(self, mode, panel_id=None):
+        """Aplica el mode de visualització.
+
+        Si `panel_id` és "left" / "right", només s'aplica a aquest panell. Sense
+        argument, s'aplica als dos panells (mode global).
 
         En els modes d'icones es mostren miniatures reals de les imatges.
         """
-        self.view_mode = mode
-        for panel in (self.left_panel, self.right_panel):
+        panel_ids = ("left", "right") if panel_id is None else (panel_id,)
+        for pid in panel_ids:
+            self.view_modes[pid] = mode
+            panel = self.left_panel if pid == "left" else self.right_panel
             if panel is not None:
                 panel.set_view_mode(mode)
-        self.config.set_view_mode(mode)
+            self.config.set_view_mode(mode, pid)
+        self.view_mode = self.view_modes.get(self.active_panel.panel_id, "details")
 
     def update_bookmarks_menu(self):
         menu = QMenu(self)

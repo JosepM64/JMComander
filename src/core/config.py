@@ -78,16 +78,34 @@ class ConfigManager:
         self.data["tooltips"] = tooltips_dict
         self.save()
 
-    def get_view_mode(self):
-        """Mode de visualització desat (details / list / icons / icons_large / icons_xl)."""
-        mode = self.data.get("view_mode", "details")
-        if mode not in ("details", "list", "icons", "icons_large", "icons_xl"):
-            return "details"
+    VALID_VIEW_MODES = ("details", "list", "icons", "icons_large", "icons_xl")
+
+    def get_view_mode(self, panel_id=None):
+        """Mode de visualització (details / list / icons / icons_large / icons_xl).
+
+        Si `panel_id` és una clau de panell ("left" / "right"), retorna el mode
+        d'aquest panell. Els modes per panell es desen a `view_modes`; sense valor
+        explícit es fa servir el mode global (`view_mode`).
+        """
+        fallback = "details"
+        if panel_id is None:
+            mode = self.data.get("view_mode", fallback)
+        else:
+            modes = self.data.get("view_modes") or {}
+            mode = modes.get(panel_id, self.data.get("view_mode", fallback))
+        if mode not in self.VALID_VIEW_MODES:
+            return fallback
         return mode
 
-    def set_view_mode(self, mode):
-        """Desa el mode de visualització."""
-        self.data["view_mode"] = mode
+    def set_view_mode(self, mode, panel_id=None):
+        """Desa el mode de visualització; si `panel_id` és donat, es desa només per a aquest panell."""
+        if panel_id is None:
+            # Canviar el mode global reinicia els overrides per panell
+            self.data["view_mode"] = mode
+            self.data.pop("view_modes", None)
+        else:
+            modes = self.data.setdefault("view_modes", {})
+            modes[panel_id] = mode
         self.save()
 
     def get_confirm_delete(self) -> bool:
