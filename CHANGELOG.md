@@ -1,5 +1,25 @@
 # Changelog JMComander
 
+## Versió 6.9.44 - Novembre 2026
+
+### Botó d'iPhone tornat a posar (detecció a demanda)
+
+Després de la v6.9.39 es va treure el botó **iPhone** de la barra de navegació i
+l'acció del menú superior, ja que la detecció es feia automàticament en obrir el
+desplegable d'unitats. Ara es torna a posar: en clicar el botó es **refresquen les
+unitats i es detecta l'iPhone / dispositiu MTP connectat** (força refresh + include).
+
+- **`src/ui/panel.py`**: botó `iPhone` tornat a afegir a la barra de navegació (amb
+  `QToolButton`, icona `SP_ComputerIcon`); `_on_detect_iphone()` → `refresh_iphone()`
+  → `DriveCombo.update_drives(force_refresh=True, include_iphone=True)`.
+- **`src/ui/components/drive_combo.py`**: `update_drives()` retorna ara el resultat
+  (`_add_iphone_entry`) i el early-exit de unitat igual retorna `False`.
+- **`src/ui/main_window.py`**: tornada a registrar l'acció del menú superior
+  `iphone` → `detect_iphone_panels()` (refresca els dos panells).
+- **`src/toolbar_constants.py`**: tornada a afegir `iphone` a `TOOLBAR_MASTER_LAYOUT`,
+  `TOOLBAR_DISPLAY_NAMES` i `TOOLBAR_DEFAULT_TOOLTIPS`.
+- **`src/core/config.py`**: esborra la migració que treia el `iphone` del layout guardat.
+
 ## Versió 6.9.43 - Novembre 2026
 
 ### Modes de visualització independents per panell

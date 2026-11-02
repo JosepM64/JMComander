@@ -167,11 +167,6 @@ class ConfigManager:
         """Fusiona el layout guardado con la lista maestra para no perder botones nuevos"""
         saved = self.data.get("toolbar_layout", [])
 
-        # v6.9.39: el botó iPhone s'ha eliminat de la barra (ara la detecció
-        # es fa automàticament en obrir el desplegable d'unitats). Cal
-        # treure'l també de les configuracions antigues.
-        saved = [item for item in saved if item != "iphone"]
-
         # Si no hay layout válido, usar el maestro completo
         if not saved or len(saved) < 5:
             self.data["toolbar_layout"] = TOOLBAR_MASTER_LAYOUT.copy()

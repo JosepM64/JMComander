@@ -34,6 +34,7 @@ TOOLBAR_MASTER_LAYOUT = [
     "equal",
     "equal_reverse",
     "explorer",
+    "iphone",
     "separator",
     # Vista y navegación
     "view_mode",
@@ -73,6 +74,7 @@ TOOLBAR_DISPLAY_NAMES = {
     "equal": "➡ Igualar paneles",
     "equal_reverse": "⬅ Igualar activo a inactivo",
     "explorer": "📂 Abrir en Explorer",
+    "iphone": "📱 Detectar iPhone / MTP",
     "view_mode": "👁 Modo de vista",
     "recent_paths": "🕐 Rutas recientes",
     "bookmarks": "🔖 Marcadores",
@@ -107,6 +109,7 @@ TOOLBAR_DEFAULT_TOOLTIPS = {
     "equal": "Igualar el panel inactivo al activo",
     "equal_reverse": "Igualar el panel activo al inactivo (Ctrl+Alt+Left)",
     "explorer": "Abrir la ruta actual en el Explorador de Windows",
+    "iphone": "Detectar iPhone / dispositiu MTP connectat (a demanda)",
     "view_mode": "Cambiar el modo de visualización",
     "recent_paths": "Ver historial de carpetas visitadas",
     "bookmarks": "Gestionar y acceder a marcadores favoritos",

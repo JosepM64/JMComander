@@ -376,8 +376,7 @@ class MainWindow(QMainWindow):
             "Ctrl+Alt+Left",
         )
         add_act("explorer", "mdi-monitor", "Explorer", self.open_in_explorer)
-        # v6.9.39: el botó iPhone s'ha tret de la barra perquè ocupava espai.
-        # La detecció es fa automàticament en obrir el desplegable d'unitats.
+        add_act("iphone", "mdi-cellphone", "iPhone", self.detect_iphone_panels)
         add_act("terminal", "mdi-terminal-outline", "Terminal", self.open_terminal_here)
         add_act("powershell", "mdi-console", "PowerShell", self.open_powershell_here)
         add_act("wezterm", "mdi-wezterm", "WezTerm", self.open_wezterm_here)
@@ -583,6 +582,13 @@ class MainWindow(QMainWindow):
     def refresh_panel(self):
         logging.debug("refresh_panel called, active_panel=%s", self.active_panel)
         self._run_action("refresh")
+
+    def detect_iphone_panels(self):
+        """Detecció iPhone/MTP a demanda: refresca les unitats dels panells i
+        afegeix l'entrada [iPhone] al desplegable si hi ha dispositiu connectat."""
+        for panel in [self.left_panel, self.right_panel]:
+            if hasattr(panel, "refresh_iphone"):
+                panel.refresh_iphone()
 
     def select_all(self):
         self._run_action("select_all")

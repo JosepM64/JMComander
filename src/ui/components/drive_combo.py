@@ -42,7 +42,7 @@ class DriveCombo(QComboBox):
             and self.count() > 0
             and getattr(self, "_last_drive", None) == current_drive
         ):
-            return
+            return False
         self._last_drive = current_drive
 
         self.blockSignals(True)
@@ -87,10 +87,12 @@ class DriveCombo(QComboBox):
         # canviar d'unitat (evita enumeracions COM al camí crític). Només
         # s'activa explícitament en obrir el desplegable (showPopup) o quan
         # ja estem dins d'una ruta Shell/MTP.
+        found = False
         if include_iphone:
-            self._add_iphone_entry(shell_current_path, force_refresh)
+            found = self._add_iphone_entry(shell_current_path, force_refresh)
 
         self.blockSignals(False)
+        return found
 
     def _add_iphone_entry(self, shell_current_path=None, force_refresh=False):
         iphone_info = get_iphone_storage_path(force_refresh)
