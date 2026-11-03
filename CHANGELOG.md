@@ -1,5 +1,24 @@
 # Changelog JMComander
 
+## Versió 6.9.53 - Novembre 2026
+
+### Copiar i moure entre panells: verificat de cap a cap
+
+S'ha auditat el flux F5/F6 (`main_window.copy_files()` → `src/core/actions.py` →
+`OperationEngine.queue_copy/queue_move` → `CopyJob`/`MoveJob`) amb proves reals
+sobre directoris temporals i Qt en mode offscreen.
+
+- **Conflicte de noms**: el `ConflictDialog` resol correctament (sobreescriure,
+  només els més antics, cancel·lar) i el fil de treball s'espera a la decisió.
+- **Sobreescriptura**: el destí s'obre en `wb`, així que el contingut queda
+  reemplaçat (no barrejat) i la carpeta existent es fusiona.
+- **Moure**: mateix volum → `os.replace` (instantani); volums diferents →
+  còpia amb progrés i esborrat de l'origen només dels ítems copiats amb èxit.
+- **Refresc**: el panell destí mostra el resultat en acabar l'operació.
+
+No ha calgut cap canvi de codi: la bateria de proves (4 casos bàsics + fusió de
+carpetes + moviment entre volums) ha passat sencera.
+
 ## Versió 6.9.52 - Novembre 2026
 
 ### L'ajuda ràpida ja és opaca
